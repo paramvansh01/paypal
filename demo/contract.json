@@ -1,0 +1,49 @@
+{
+  "version": 1,
+  "currency": "USD",
+  "total_cents": 10000,
+  "milestones": [
+    {
+      "title": "Home page live",
+      "amount_cents": 2500,
+      "items": [
+        { "description": "Home page loads", "check_type": "http_status", "params": { "path": "/", "expected": 200 } },
+        { "description": "Shows the tagline", "check_type": "text_present", "params": { "path": "/", "text": "Slow bread, baked before sunrise." } },
+        { "description": "Navigation links to the menu", "check_type": "element_exists", "params": { "path": "/", "selector": "nav a[href='menu.html']" } }
+      ]
+    },
+    {
+      "title": "Menu published",
+      "amount_cents": 2500,
+      "items": [
+        { "description": "Menu lists items", "check_type": "element_exists", "params": { "path": "/menu.html", "selector": ".menu-item" } },
+        { "description": "Menu includes the sourdough loaf", "check_type": "text_present", "params": { "path": "/menu.html", "text": "Country sourdough loaf" } },
+        { "description": "No broken links on the home page", "check_type": "links_ok", "params": { "path": "/" } }
+      ]
+    },
+    {
+      "title": "Contact form works",
+      "amount_cents": 2500,
+      "items": [
+        {
+          "description": "Contact form sends a message and confirms it",
+          "check_type": "form_submits",
+          "params": {
+            "path": "/contact.html",
+            "form_selector": "#contact-form",
+            "fields": { "#name": "Kept Verifier", "#email": "verifier@example.com", "#message": "Hello from the Kept verifier." },
+            "success": { "text": "Thanks — we'll be in touch" }
+          }
+        }
+      ]
+    },
+    {
+      "title": "Mobile ready and fast",
+      "amount_cents": 2500,
+      "items": [
+        { "description": "No sideways scrolling on a phone", "check_type": "mobile_no_overflow", "params": { "path": "/" } },
+        { "description": "Home page loads in under 3 seconds", "check_type": "load_time_under", "params": { "path": "/", "ms": 3000 } }
+      ]
+    }
+  ]
+}

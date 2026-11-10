@@ -1,0 +1,49 @@
+/* Halcyon Crumb — an invented bakery used only as a Kept demo deliverable. */
+:root {
+  --bg: #fbf7f1;
+  --ink: #2b2420;
+  --muted: #6f625a;
+  --accent: #b5562b;
+  --accent-ink: #ffffff;
+  --card: #ffffff;
+  --line: #eadfd3;
+  --ok: #2f7a4a;
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  font-family: Georgia, "Iowan Old Style", "Times New Roman", serif;
+  background: var(--bg);
+  color: var(--ink);
+  line-height: 1.55;
+}
+a { color: var(--accent); }
+.wrap { max-width: 960px; margin: 0 auto; padding: 0 20px; }
+header.site { border-bottom: 1px solid var(--line); background: var(--card); }
+header.site .wrap { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding-top: 14px; padding-bottom: 14px; flex-wrap: wrap; }
+.brand { font-size: 1.35rem; font-weight: 700; letter-spacing: 0.01em; text-decoration: none; color: var(--ink); }
+nav ul { list-style: none; display: flex; gap: 18px; margin: 0; padding: 0; flex-wrap: wrap; }
+nav a { text-decoration: none; font-family: system-ui, sans-serif; font-size: 0.95rem; }
+nav a[aria-current="page"] { font-weight: 700; text-decoration: underline; text-underline-offset: 4px; }
+.hero { padding: 56px 0 40px; }
+.hero h1 { font-size: clamp(2rem, 6vw, 3.2rem); line-height: 1.1; margin: 0 0 12px; }
+.hero p { font-size: 1.15rem; color: var(--muted); max-width: 36rem; margin: 0 0 24px; }
+.button {
+  display: inline-block; background: var(--accent); color: var(--accent-ink); border: 0; border-radius: 999px;
+  padding: 12px 22px; font: 600 1rem system-ui, sans-serif; text-decoration: none; cursor: pointer;
+}
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; padding-bottom: 48px; }
+.card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 18px; }
+.card h2, .card h3 { margin: 0 0 6px; font-size: 1.1rem; }
+.card p { margin: 0; color: var(--muted); }
+.menu-item { display: flex; justify-content: space-between; gap: 12px; padding: 12px 0; border-bottom: 1px dashed var(--line); }
+.menu-item .price { font-family: system-ui, sans-serif; font-weight: 600; white-space: nowrap; }
+form.contact { display: grid; gap: 14px; max-width: 32rem; padding-bottom: 48px; }
+form.contact label { display: grid; gap: 6px; font: 600 0.95rem system-ui, sans-serif; }
+form.contact input, form.contact textarea {
+  font: 1rem system-ui, sans-serif; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--card); width: 100%;
+}
+.notice { border-radius: 10px; padding: 12px 14px; font: 1rem system-ui, sans-serif; }
+.notice.ok { background: #e7f4ec; color: var(--ok); border: 1px solid #bfe0cb; }
+footer.site { border-top: 1px solid var(--line); padding: 24px 0 40px; color: var(--muted); font: 0.9rem system-ui, sans-serif; }

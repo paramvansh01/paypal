@@ -1,3 +1,4 @@
+import { fileURLToPath } from "node:url";
 import express, { type Express } from "express";
 import type { Config } from "../config.js";
 import { publicKeyring, type Keyring } from "../qaps/keys.js";
@@ -21,6 +22,8 @@ const PLACEHOLDER_PAGE = `<!doctype html>
 </body>
 </html>`;
 
+export const DEMO_SITES_DIR = fileURLToPath(new URL("../../demo/sites/", import.meta.url));
+
 export interface AppDeps {
   keyring?: Keyring;
 }
@@ -41,6 +44,20 @@ export function createApp(config: Config, deps: AppDeps = {}): Express {
       return;
     }
     res.set("Cache-Control", "public, max-age=300").json(publicKeyring(deps.keyring));
+  });
+
+  // Demo deliverables (good / flawed / sneaky) and the tiny API their contact form posts to.
+  app.use(
+    "/demo/sites",
+    express.static(DEMO_SITES_DIR, { index: "index.html", redirect: true, etag: false, lastModified: false, maxAge: 0 }),
+  );
+  app.post("/demo/api/contact", (req, res) => {
+    const { name, email, message } = (req.body ?? {}) as Record<string, unknown>;
+    if (![name, email, message].every((v) => typeof v === "string" && v.trim() && v.length < 5000)) {
+      res.status(400).json({ ok: false, error: "name, email and message are required" });
+      return;
+    }
+    res.json({ ok: true });
   });
 
   app.get("/", (_req, res) => {

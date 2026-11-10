@@ -12,9 +12,9 @@
 
 ```
 Phase:              PQ — QAPS core, pure parts first (P1 PayPal spikes are blocked on H2–H3)
-Next action:        T3.8 (demo sites first, so T3.4 checks can be tested against them), then T3.4, TQ.4
+Next action:        T3.4 (then TQ.4, T3.5, T3.7, TQ.6)
 Active session:     Param — 2026-11-10T16:55+05:30
-Last updated:       2026-11-10 (T3.3 done)
+Last updated:       2026-11-10 (T3.8 sites built)
 Payment rail:       UNDECIDED (decided by the spike in P1)
 Blockers:           H1 (no GitHub remote yet; commits are local in ~/kept on Param's Mac). H2–H3 (PayPal sandbox app + accounts) block T1.1 proof and T1.2–T1.6. H4 (Anthropic + KERNEL keys) blocks live verifier and judge runs.
 Hosted demo URL:    —
@@ -511,7 +511,7 @@ Goal: learn in a few hours which rail works in our sandbox. Scripts live in `scr
 - [ ] **T3.5** Evidence capture: screenshot per item, measured values, and the KERNEL replay link when available. Stored and served by the app.
 - [ ] **T3.6** `llm_judgement` check with the safety rules in 6.7 and the canary integrity check in 6.10.
 - [ ] **T3.7** Single-verifier runner: runs every item for one verifier (one browser, one judge), applies timeouts, runs the tripwire scanner on each page, and returns leaf records + artifacts. The quorum orchestrator (TQ.6) calls it n times.
-- [ ] **T3.8** Demo deliverables in `demo/sites/`: `good/` passes everything; `flawed/` has a contact form that does not submit, so exactly one milestone fails; `sneaky/` has the same broken form plus hidden text telling the AI the form works, so the tripwire must fire. All served by the app.
+- [~] **T3.8** (Param — sites, contact API and `demo/contract.json` done; acceptance runs need TQ.6) Demo deliverables in `demo/sites/`: `good/` passes everything; `flawed/` has a contact form that does not submit, so exactly one milestone fails; `sneaky/` has the same broken form plus hidden text telling the AI the form works, so the tripwire must fire. All served by the app.
   *Done when:* the full quorum gives 4 of 4 on `good`, 3 of 4 on `flawed`, and 3 of 4 with `INJECTION_DETECTED` on `sneaky`, ten runs in a row.
 - [ ] **T3.9** Evidence report page: checklist, contract hash, per-verifier verdicts side by side, quorum result, evidence, PayPal IDs, timeline. JSON export is the Proof Receipt (TQ.7).
 
@@ -631,6 +631,7 @@ Format: `YYYY-MM-DD — <name> — decision — reason`
 - 2026-11-10 — Param — Settlement (`src/core/settlement.ts`) takes a `ProofLoader` so it can be tested before the verifier tables exist; it serialises calls per job in-process, persists passed/failed before calling PayPal, and refuses (rather than guesses) if an interrupted run recorded a different outcome. The rail interface gained an optional `finalize()` (auth_capture voids the rest of the hold there). tsconfig target is ES2023.
 - 2026-11-10 — Param — Local verifier browsers go through our own egress proxy (`src/verifier/egress-proxy.ts`) plus a route guard. Reason: Playwright routes only see the first URL of a redirect chain in Chromium, so a deliverable could redirect into 169.254.169.254; the test caught it. The proxy checks every hop, connects to the exact IP it checked (DNS rebinding fails), and Chromium is launched with `--proxy-bypass-list=<-loopback>` so localhost is checked too (tested for both engines).
 - 2026-11-10 — Param — verifier-a uses KERNEL only when the deliverable is publicly reachable (a cloud browser cannot reach localhost); otherwise it falls back to local Chromium and the signed attestation's `browser` field says so. KERNEL sessions are headful when a replay is wanted (replays need headful) and have a 300 s timeout. KERNEL provider is untested until a key exists (H4).
+- 2026-11-10 — Param — Demo deliverable is an invented bakery, "Halcyon Crumb" (no real brand). `demo/contract.json` is a fixed 4 × $25 contract with only deterministic checks, so the agent demo is reproducible without an AI key. The `sneaky` site uses four tricks: an HTML comment, a `display:none` block, background-coloured 2px text, and a pre-planted hidden copy of the form's success message (to fool a naive "text appeared" check). Form checks must therefore require the success text to become visible after submitting.
 - 2026-11-10 — Param — Config enforces 2k > n for the quorum (default 2-of-3), so two conflicting quorums can never both form. Verifier keys are Ed25519 JWKs in `data/keys/<id>.jwk.json` (mode 0600, created on first boot) or `VERIFIER_KEYS_JSON`; the loader re-derives the public key instead of trusting the stored one. Attestations are signed over canonical JSON and carry the key fingerprint; `leaf_count` is signed because an RFC 6962 root alone does not pin the tree size.
 
 ---
