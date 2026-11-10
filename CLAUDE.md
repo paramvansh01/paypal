@@ -12,10 +12,10 @@
 
 ```
 Phase:              PQ — QAPS core (the verifier quorum works end to end locally; PayPal spikes still blocked on H2–H3)
-Next action:        T3.8 — run `npm run demo:verify -- --runs 10` (~5 min). If all 30 runs match, mark T3.8 [x]; then TQ.7.
-Suggested order:    T3.8 → TQ.7 → TQ.8 → T2.6 → TQ.10 → T3.9 → T4.1 → T4.4 → T5.1 (all need no keys). With H2–H3 done, jump to T1.1 proof + P1 spikes. With H4, T3.1/T3.2/T3.6/TQ.5.
+Next action:        TQ.7 — Proof Receipt per 6.12 (assembly, `GET /jobs/:id/receipt`, MCP `get_receipt`, download button).
+Suggested order:    TQ.7 → TQ.8 → T2.6 → TQ.10 → T3.9 → T4.1 → T4.4 → T5.1 (all need no keys). With H2–H3 done, jump to T1.1 proof + P1 spikes. With H4, T3.1/T3.2/T3.6/TQ.5.
 Active session:     Aashman — 2026-11-10T13:38Z
-Last updated:       2026-11-10 (handoff after T3.5, T3.7, TQ.6)
+Last updated:       2026-11-10 (Aashman: T3.8 done; WebKit loopback SSRF fixed)
 Payment rail:       UNDECIDED (decided by the spike in P1)
 Blockers:           H2–H3 (PayPal sandbox) block T1.1 proof and all of P1, T2.3, T2.4, TQ.9 binding. H4 (Anthropic + KERNEL keys) blocks T3.1/T3.2/T3.6/TQ.5 live runs and the KERNEL browser path.
 Hosted demo URL:    —
@@ -512,7 +512,7 @@ Goal: learn in a few hours which rail works in our sandbox. Scripts live in `scr
 - [x] **T3.5** Evidence capture: screenshot per item, measured values, and the KERNEL replay link when available. Stored and served by the app.
 - [ ] **T3.6** `llm_judgement` check with the safety rules in 6.7 and the canary integrity check in 6.10.
 - [x] **T3.7** Single-verifier runner: runs every item for one verifier (one browser, one judge), applies timeouts, runs the tripwire scanner on each page, and returns leaf records + artifacts. The quorum orchestrator (TQ.6) calls it n times.
-- [~] **T3.8** (sites, contact API, `demo/contract.json` and `npm run demo:verify` done; 1 run per site matched; the 10-run acceptance is the next action) Demo deliverables in `demo/sites/`: `good/` passes everything; `flawed/` has a contact form that does not submit, so exactly one milestone fails; `sneaky/` has the same broken form plus hidden text telling the AI the form works, so the tripwire must fire. All served by the app.
+- [x] **T3.8** Demo deliverables in `demo/sites/`: `good/` passes everything; `flawed/` has a contact form that does not submit, so exactly one milestone fails; `sneaky/` has the same broken form plus hidden text telling the AI the form works, so the tripwire must fire. All served by the app.
   *Done when:* the full quorum gives 4 of 4 on `good`, 3 of 4 on `flawed`, and 3 of 4 with `INJECTION_DETECTED` on `sneaky`, ten runs in a row.
 - [ ] **T3.9** Evidence report page: checklist, contract hash, per-verifier verdicts side by side, quorum result, evidence, PayPal IDs, timeline. JSON export is the Proof Receipt (TQ.7).
 
@@ -640,6 +640,8 @@ Format: `YYYY-MM-DD — <name> — decision — reason`
 - 2026-11-10 — Param — Form checks wait at most 10 s for the success signal. Verification runs are numbered by `round`; if fewer than k verifiers finish, the job returns to DELIVERED and a later round can succeed. `recoverInterruptedVerifications()` must be called on server start (wire it in T2.6).
 - 2026-11-10 — Param — Repo published at https://github.com/paramvansh01/paypal (named `paypal`; the project and folder are still called Kept). History pushed as-is.
 - 2026-11-10 — Param — Config enforces 2k > n for the quorum (default 2-of-3), so two conflicting quorums can never both form. Verifier keys are Ed25519 JWKs in `data/keys/<id>.jwk.json` (mode 0600, created on first boot) or `VERIFIER_KEYS_JSON`; the loader re-derives the public key instead of trusting the stored one. Attestations are signed over canonical JSON and carry the key fingerprint; `leaf_count` is signed because an RFC 6962 root alone does not pin the tree size.
+- 2026-11-10 — Aashman — Local WebKit fetches every request on the Node side (`route.fetch()` through the egress proxy) and the browser gets only the final response. Reason: on macOS 26, WebKit connects to loopback directly and ignores the proxy, and routes never see redirect hops, so a deliverable could redirect the WebKit verifier into 127.0.0.1 (reproduced, including via HTTPS where the proxy cannot read the 302). Each hop is now its own checked CONNECT tunnel. Cost: after a path-changing redirect, directory-relative links resolve against the original URL (root-relative and absolute links are fine). Playwright cannot fulfill a route with a 3xx, so hop-by-hop handoff to the browser is not possible. Chromium is unchanged.
+- 2026-11-10 — Aashman — Egress proxy also checks plain-HTTP redirect `Location`s (403 block page if refused), and a CONNECT tunnel to host:port is allowed when either the http or https origin is allowed (Playwright's fetcher tunnels plain http). Verifier keys load from `d` alone (PKCS#8) so the stored-`x` check behaves the same on Node 26, which rejects a mismatch inside `createPrivateKey`.
 
 ---
 
@@ -676,3 +678,10 @@ In flight: T3.8 — only the 10-runs-per-site acceptance is left: `npm run demo:
 Learned:   (1) Playwright routes miss redirect hops in Chromium, hence the egress proxy. (2) tsx/esbuild injects `__name` into functions passed to page.evaluate; keep in-page code in *.page.js files. (3) drizzle-kit asks interactive rename questions when a migration both drops and adds columns: generate a drop-only migration first, then an add-only one. (4) Gate commits on `npm run check`'s exit code, not on grep output. (5) Exhaustive quorum tests found that an injection veto could be bypassed by dropping a report, so injection flags are fail votes. (6) Demo: `npm run demo:verify` needs no keys; good=4/4, flawed=3/4, sneaky=3/4 with INJECTION_DETECTED.
 Next:      T3.8 acceptance, then TQ.7 (see "Suggested order" in Live State).
 Blockers:  H2–H3 (PayPal), H4 (Anthropic + KERNEL keys). (H1 done afterwards: pushed to https://github.com/paramvansh01/paypal.)
+
+### 2026-11-10 19:15 IST — Aashman
+Done:      T3.8 (`npm run demo:verify -- --runs 10`: all 30 runs matched, twice — before and after the WebKit change). Fixed a WebKit loopback SSRF on macOS 26 and a Node 26 key-loading difference (see Decision Log). 524 tests green.
+In flight: nothing
+Learned:   (1) This Mac: Node 26.11, macOS 26.6, Playwright 1.65 / WebKit 27.2. (2) WebKit on macOS 26 skips the launch proxy for loopback; never rely on the proxy alone for WebKit. (3) Playwright's tunneled fetch sends SNI `localhost` for a 127.0.0.1 target, so local TLS test certs need `DNS:localhost`. (4) The exhaustive n=5 quorum test can exceed 5 s under load; it has a 60 s timeout now.
+Next:      TQ.7
+Blockers:  H2–H3 (PayPal), H4 (Anthropic + KERNEL keys). No `.env` on Aashman's Mac yet (H5).
