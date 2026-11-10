@@ -12,10 +12,10 @@
 
 ```
 Phase:              PQ — QAPS core (the verifier quorum works end to end locally; PayPal spikes still blocked on H2–H3)
-Next action:        T2.6 — REST API for the full lifecycle (wire `recoverInterruptedVerifications()` on server start too).
-Suggested order:    T2.6 → TQ.10 → T3.9 → T4.1 → T4.4 → T5.1 (all need no keys). With H2–H3 done, jump to T1.1 proof + P1 spikes. With H4, T3.1/T3.2/T3.6/TQ.5.
+Next action:        TQ.10 — `docs/PROTOCOL.md`: Kept Protocol v1 (contract, attestation, certificate, quorum rule, receipt + seal, verification steps).
+Suggested order:    TQ.10 → TQ.10 → T3.9 → T4.1 → T4.4 → T5.1 (all need no keys). With H2–H3 done, jump to T1.1 proof + P1 spikes. With H4, T3.1/T3.2/T3.6/TQ.5.
 Active session:     Aashman — 2026-11-10T13:38Z
-Last updated:       2026-11-10 (Aashman: T3.8, TQ.7, TQ.8 done)
+Last updated:       2026-11-10 (Aashman: T3.8, TQ.7, TQ.8, T2.6 done)
 Payment rail:       UNDECIDED (decided by the spike in P1)
 Blockers:           H2–H3 (PayPal sandbox) block T1.1 proof and all of P1, T2.3, T2.4, TQ.9 binding. H4 (Anthropic + KERNEL keys) blocks T3.1/T3.2/T3.6/TQ.5 live runs and the KERNEL browser path.
 Hosted demo URL:    —
@@ -498,7 +498,7 @@ Goal: learn in a few hours which rail works in our sandbox. Scripts live in `scr
 - [ ] **T2.3** `PaymentRail` interface and the chosen implementation, built from the proven spike code. Includes `custom_id` = checklist hash.
 - [ ] **T2.4** The second rail implementation, at least to the level its spike reached.
 - [x] **T2.5** Settlement logic: for a `VERIFIED` job, release passed milestones and refund failed ones, idempotently. Running `settle` twice must not move money twice. Tests with a mocked rail.
-- [ ] **T2.6** REST API for the full lifecycle (create job, accept, lock, confirm, submit, verify, approve item, settle, get job, list jobs, ledger).
+- [x] **T2.6** REST API for the full lifecycle (create job, accept, lock, confirm, submit, verify, approve item, settle, get job, list jobs, ledger). Routes are listed at the top of `src/server/api.ts`; lock/confirm/settle answer 503 until the PayPal rail (T2.3) is passed to `createApp`.
 - [ ] **T2.7** Status reconciliation: `status()` reads truth back from PayPal and corrects local state. Webhook endpoint with signature verification for the hosted deployment.
 - [ ] **T2.8** End-to-end script `npm run e2e` against the sandbox: full happy path with a stubbed verifier, pausing for the human approval click.
   *Done when:* real sandbox balances match the ledger.
@@ -647,6 +647,9 @@ Format: `YYYY-MM-DD — <name> — decision — reason`
 - 2026-11-10 — Aashman — Receipts carry an issuer seal (`seal`: per-section SHA-256s signed by the `kept-issuer` key, loaded like verifier keys from `VERIFIER_KEYS_DIR`/`VERIFIER_KEYS_JSON` — on Render the JSON must include `kept-issuer`). Reason: TQ.8 requires that changing any field fails, and PayPal IDs, events and status are not signed by any verifier. Honest limit: someone can re-seal an edited receipt with their own key; verifiers compare the seal key with `/.well-known/kept/issuer.json` (automatic when verifying by URL, `--issuer <fingerprint>` for files). The proven parts never depend on the seal.
 - 2026-11-10 — Aashman — Signatures and public keys are accepted only in canonical base64url. The every-field tamper test found that changing the last character of a signature (4 unused bits) still verified, in both verifiers and in attestation checks.
 - 2026-11-10 — Aashman — Two independent receipt verifiers: `npm run verify-receipt` (Kept's TypeScript `verifyReceipt`) and `tools/verify-receipt.mjs` (zero dependencies, also importable). They report the same check names; tests require both to reject every single-field change of a real receipt and to agree on malformed input. The standalone one hashes the contract as given, so receipts must carry the normalised contract (they do). Verifying by URL also fetches every artifact and checks its bytes; for files use `--artifacts`.
+- 2026-11-10 — Aashman — API auth: party tokens `<party_id>.<hex HMAC-SHA256(MCP_AUTH_TOKEN, "kept-party:"+party_id)>`, nothing stored (`src/server/auth.ts`, `npm run party-token`). Reads are public (like receipts); every write needs a token; without MCP_AUTH_TOKEN writes answer 503. The MCP server (T4.1) should use the same tokens. Role rules live in `src/core/jobs.ts` (shared with MCP): client posts, locks, confirms, cancels, decides items; worker submits; either party proposes/accepts the checklist, starts verification, settles.
+- 2026-11-10 — Aashman — Checklist agreement: the server always sets the contract's `quorum` (its own keys, `QUORUM_K`); a submitted `quorum` is refused unless it is exactly the server's. Each party accepts a specific `checklist_hash` (stale hash → 400), recorded as `CHECKLIST_ACCEPTED` events; any revision makes acceptances lapse unless the hash is identical; both on the current hash → AGREED. A job's budget must equal the checklist total.
+- 2026-11-10 — Aashman — `POST /jobs/:id/verify` answers 202 and runs in the background (`?wait=1` waits); a second request is refused because verifyJob moves the job to VERIFYING synchronously. The server's own origins (PUBLIC_BASE_URL, 127.0.0.1:PORT, localhost:PORT) are the only private addresses verifiers may open, for the built-in demo sites. `recoverInterruptedVerifications()` runs on server start. Rail failures → 502 with no state change. Ledger reports gross cents only; fees/net wait for the PayPal rail (T2.3/T5.3).
 
 ---
 
@@ -704,3 +707,10 @@ In flight: nothing
 Learned:   Node decodes base64url leniently (unused trailing bits are ignored), so never compare encoded signatures loosely — re-encode and compare. A test server that needs its own URL in config must listen before the app is built.
 Next:      T2.6
 Blockers:  H2–H3 (PayPal), H4 (Anthropic + KERNEL keys), H5 (`.env` on Aashman's Mac).
+
+### 2026-11-10 22:45 IST — Aashman
+Done:      T2.6 — `src/core/jobs.ts` (lifecycle + role rules, shared with MCP), `src/server/api.ts` (routes + error mapping), party tokens (`src/server/auth.ts`, `npm run party-token`), `src/server/verifier.ts` (verifier from config), server wiring (DB, interrupted-verification recovery). 17 API tests incl. the full flawed-site lifecycle over HTTP with the real verifier quorum and mock PayPal (3 released, 1 refunded, receipt verifies). Smoke-tested `npm start`. 574 tests green.
+In flight: nothing
+Learned:   Spreading a class instance (`{...new MockRail()}`) drops its methods; subclass test doubles instead. PUBLIC_BASE_URL does not follow PORT (defaults to localhost:3000), so set both when changing the port.
+Next:      TQ.10
+Blockers:  H2–H3 (PayPal) also block real lock/confirm/settle over the API (no rail yet), H4 (Anthropic + KERNEL keys), H5 (`.env` on Aashman's Mac).

@@ -4,6 +4,9 @@ import type { Config } from "../config.js";
 import { getReceipt, ReceiptUnavailableError } from "../core/receipt-store.js";
 import { JobNotFoundError } from "../core/state.js";
 import type { Db } from "../db/client.js";
+import type { PaymentRail } from "../rails/types.js";
+import type { VerificationSummary } from "../verifier/orchestrator.js";
+import { apiErrors, apiRouter } from "./api.js";
 import { publicKeyring, type Keyring, type VerifierKey } from "../qaps/keys.js";
 import type { EvidenceStore } from "../verifier/evidence-store.js";
 
@@ -33,6 +36,10 @@ export interface AppDeps {
   keyring?: Keyring;
   /** Kept's receipt-sealing key (ISSUER_ID). */
   issuer?: VerifierKey;
+  /** PayPal rail for lock/confirm/settle (T2.3). */
+  rail?: PaymentRail;
+  /** Runs the verifier quorum for a job (see buildVerifier in server/verifier.ts). */
+  verify?: (db: Db, jobId: string) => Promise<VerificationSummary>;
   evidence?: EvidenceStore;
 }
 
@@ -95,6 +102,11 @@ export function createApp(config: Config, deps: AppDeps = {}): Express {
     }
   });
 
+  // The job lifecycle API (T2.6).
+  if (deps.db && deps.keyring) {
+    app.use(apiRouter(config, { db: deps.db, keyring: deps.keyring, rail: deps.rail, verify: deps.verify }));
+  }
+
   // Demo deliverables (good / flawed / sneaky) and the tiny API their contact form posts to.
   app.use(
     "/demo/sites",
@@ -112,6 +124,8 @@ export function createApp(config: Config, deps: AppDeps = {}): Express {
   app.get("/", (_req, res) => {
     res.type("html").send(PLACEHOLDER_PAGE);
   });
+
+  app.use(apiErrors);
 
   return app;
 }

@@ -18,7 +18,8 @@
     "doctor": "tsx scripts/doctor.ts",
     "spike:token": "tsx scripts/spike-token.ts",
     "demo:verify": "tsx scripts/demo-verify.ts",
-    "verify-receipt": "tsx scripts/verify-receipt.ts"
+    "verify-receipt": "tsx scripts/verify-receipt.ts",
+    "party-token": "tsx scripts/party-token.ts"
   },
   "license": "MIT",
   "type": "module",
