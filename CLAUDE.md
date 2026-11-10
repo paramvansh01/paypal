@@ -12,9 +12,9 @@
 
 ```
 Phase:              P0 — Setup
-Next action:        T0.6
+Next action:        T0.7
 Active session:     Param — 2026-11-10T16:55+05:30
-Last updated:       2026-11-10 (T0.5 done)
+Last updated:       2026-11-10 (T0.6 done)
 Payment rail:       UNDECIDED (decided by the spike in P1)
 Blockers:           H1 (no GitHub remote yet; commits are local in ~/kept on Param's Mac), H2–H5 before P1
 Hosted demo URL:    —
@@ -386,7 +386,7 @@ Priority tiers: **MUST** = needed for a valid, convincing submission. **SHOULD**
   *Done when:* `npm run dev` starts and `/health` returns ok.
 - [x] **T0.5** Database: Drizzle schema from 6.4, migration, and `npm run seed` creating the demo parties from env.
   *Done when:* seed runs twice without duplicating rows.
-- [ ] **T0.6** `npm run doctor`: checks every env var, gets a PayPal token, makes one tiny LLM call, opens one verifier browser. Prints a pass/fail table.
+- [x] **T0.6** `npm run doctor`: checks every env var, gets a PayPal token, makes one tiny LLM call, opens one verifier browser. Prints a pass/fail table.
   *Done when:* it reports each service separately and exits non-zero on failure.
 - [ ] **T0.7** README skeleton: what Kept is, prerequisites, setup, run, placeholder for the demo walkthrough.
 
@@ -515,6 +515,7 @@ Format: `YYYY-MM-DD — <name> — decision — reason`
 - 2026-11-10 — Param — Current major versions: Express 5, Zod 4, ESLint 10 flat config, Vitest 4, ESM (`"type": "module"`), run with tsx (no build step for the server) — avoids a compile step for judges.
 - 2026-11-10 — Param — Config validates formats at boot but only demands a service's keys when that service is used (`requireConfig(config, "paypal")`) — lets /health and the UI run before every secret exists; doctor reports per group. PAYPAL_BASE_URL must contain "sandbox".
 - 2026-11-10 — Param — Money stored as integer cents (`total_amount_cents`, `amount_cents`); milestones and items carry a `position` column for canonical ordering. Migrations live in src/db/migrations (`npm run db:generate`) and run automatically in `openDb()`. Demo parties have fixed IDs `party_demo_client` (human) and `party_demo_worker` (agent).
+- 2026-11-10 — Param — Default `LLM_MODEL=claude-opus-5-5` (current Opus; Opus 5.5 has thinking always on, so control cost with `output_config.effort`, default `medium`, not a thinking budget). Packages: `@anthropic-ai/sdk` 1.x, `@onkernel/sdk` (`kernel.browsers.create()` → `cdp_ws_url`, `deleteByID`), `playwright`. Doctor KERNEL path is untested until a KERNEL key exists.
 
 ---
 
