@@ -101,7 +101,8 @@ describe("decideItem", () => {
         if (partial.verdict !== "needs_client") expect(partial.verdict).toBe(full.verdict);
       }
     }
-  });
+    // Exhaustive search: n=5 takes several seconds when sharing the CPU with browser tests.
+  }, 60_000);
 });
 
 // ---------- certificates ----------

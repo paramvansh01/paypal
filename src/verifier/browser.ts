@@ -43,8 +43,22 @@ const DEFAULT_VIEWPORT = { width: 1280, height: 800 };
 /**
  * Fresh context + request-level guard. For local browsers this is the second
  * layer: the egress proxy (which also sees every redirect hop) is the first.
+ *
+ * `fetchViaProxy` (local WebKit): WebKit on macOS connects to loopback addresses
+ * directly, ignoring the proxy, and routes never see redirect hops. A deliverable
+ * could then redirect the browser (even inside HTTPS, where the proxy cannot read
+ * the 302) into a service on the verifier's own machine. So for WebKit every
+ * request is fetched by Playwright on the Node side through the egress proxy,
+ * following redirects there (each hop is its own checked tunnel), and the browser
+ * only receives the final response.
  */
-async function prepareContext(browser: Browser, opts: SessionOptions, reuseDefault = false, blocked: BrowserSession["blocked"] = []) {
+async function prepareContext(
+  browser: Browser,
+  opts: SessionOptions,
+  reuseDefault = false,
+  blocked: BrowserSession["blocked"] = [],
+  fetchViaProxy = false,
+) {
   const context =
     reuseDefault && browser.contexts()[0]
       ? browser.contexts()[0]!
@@ -71,9 +85,20 @@ async function prepareContext(browser: Browser, opts: SessionOptions, reuseDefau
     const url = route.request().url();
     if (!/^https?:/i.test(url)) return route.continue();
     const res = await guard(url);
-    if (res.ok) return route.continue();
-    blocked.push({ url, reason: res.reason });
-    return route.abort("blockedbyclient");
+    if (!res.ok) {
+      blocked.push({ url, reason: res.reason });
+      return route.abort("blockedbyclient");
+    }
+    if (!fetchViaProxy) return route.continue();
+    const before = blocked.length;
+    let response;
+    try {
+      response = await route.fetch();
+    } catch {
+      // The proxy refused a hop (it records why in `blocked`) or the network failed.
+      return route.abort(blocked.length > before ? "blockedbyclient" : "failed").catch(() => undefined);
+    }
+    return route.fulfill({ response }).catch(() => undefined);
   });
   await context.routeWebSocket(/.*/, async (ws) => {
     const url = ws.url().replace(/^ws/, "http");
@@ -111,7 +136,7 @@ function localProvider(kind: "local-chromium" | "local-webkit"): BrowserProvider
         }
         throw err;
       }
-      const { context } = await prepareContext(browser, opts, false, blocked);
+      const { context } = await prepareContext(browser, opts, false, blocked, kind === "local-webkit");
       return {
         kind,
         label: `${kind} ${browser.version()}`,

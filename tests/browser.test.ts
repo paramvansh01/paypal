@@ -1,4 +1,10 @@
+import { execFileSync } from "node:child_process";
+import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { createServer, type Server } from "node:http";
+import { createServer as createHttpsServer } from "node:https";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import tls from "node:tls";
 import type { AddressInfo } from "node:net";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { localChromium, localWebkit, panelBrowsers, type BrowserProvider } from "../src/verifier/browser.js";
@@ -135,6 +141,35 @@ describe.each<[string, () => BrowserProvider]>([
   );
 
   it(
+    "blocks a redirect from the allowed origin to another loopback service",
+    async () => {
+      let hits = 0;
+      const secret = createServer((_q, r) => {
+        hits++;
+        r.end("<title>SECRET</title>");
+      });
+      await new Promise<void>((r) => secret.listen(0, "127.0.0.1", r));
+      const secretUrl = `http://127.0.0.1:${(secret.address() as AddressInfo).port}/x`;
+      const site = createServer((_q, r) => r.writeHead(302, { location: secretUrl }).end());
+      await new Promise<void>((r) => site.listen(0, "127.0.0.1", r));
+      const siteOrigin = `http://127.0.0.1:${(site.address() as AddressInfo).port}`;
+      const session = await makeProvider().open({ network: { allowOrigins: [siteOrigin] } });
+      try {
+        const page = await session.context.newPage();
+        await page.goto(`${siteOrigin}/`).catch(() => null);
+        expect(hits).toBe(0);
+        // Recorded as the URL (proxy saw the 302) or as host:port (a checked CONNECT tunnel).
+        expect(session.blocked.some((b) => b.url.startsWith(new URL(secretUrl).origin.replace(/^http:/, "")) || b.url.includes(new URL(secretUrl).host))).toBe(true);
+      } finally {
+        await session.close();
+        await new Promise<void>((r) => secret.close(() => r()));
+        await new Promise<void>((r) => site.close(() => r()));
+      }
+    },
+    30_000,
+  );
+
+  it(
     "blocks a deliverable on localhost that was not explicitly allowed",
     async () => {
       const session = await makeProvider().open({ network: { allowOrigins: [] } });
@@ -151,22 +186,22 @@ describe.each<[string, () => BrowserProvider]>([
 });
 
 describe("proxy coverage", () => {
-  it.each([
-    ["chromium", ["--proxy-bypass-list=<-loopback>"]],
-    ["webkit", []],
-  ] as const)(
-    "%s sends loopback traffic through the proxy (so the egress guard sees it)",
-    async (name, args) => {
-      const { chromium, webkit } = await import("playwright");
+  // Chromium honours the proxy for loopback when told to. WebKit on macOS 26 does not
+  // (it connects to 127.0.0.1 directly), which is why local WebKit fetches through
+  // the proxy on the Node side instead (see prepareContext in src/verifier/browser.ts).
+  it(
+    "chromium sends loopback traffic through the proxy (so the egress guard sees it)",
+    async () => {
+      const { chromium } = await import("playwright");
       const seen: string[] = [];
       const proxy = createServer((req, res) => {
         seen.push(req.url ?? "");
         res.writeHead(200, { "content-type": "text/html" }).end("<title>via proxy</title>");
       });
       await new Promise<void>((r) => proxy.listen(0, "127.0.0.1", r));
-      const browser = await (name === "chromium" ? chromium : webkit).launch({
+      const browser = await chromium.launch({
         proxy: { server: `http://127.0.0.1:${(proxy.address() as AddressInfo).port}` },
-        args: [...args],
+        args: ["--proxy-bypass-list=<-loopback>"],
       });
       try {
         const page = await browser.newPage();
@@ -180,4 +215,61 @@ describe("proxy coverage", () => {
     },
     30_000,
   );
+
+  // The proxy cannot read a redirect inside an HTTPS tunnel, so this is the case that
+  // needs every hop to be its own checked tunnel.
+  const canTrustTestCa = typeof (tls as { setDefaultCACertificates?: unknown }).setDefaultCACertificates === "function" && hasOpenssl();
+  // WebKit only: there the Node side fetches, so a test CA trusted by Node is enough.
+  // (Chromium checks certificates itself and would reject the test certificate.)
+  describe.each<[string, () => BrowserProvider]>([["local WebKit", localWebkit]])("%s over HTTPS", (_name, makeProvider) => {
+    it.skipIf(!canTrustTestCa)(
+      "blocks an HTTPS redirect from the allowed origin into a loopback service",
+      async () => {
+        const dir = mkdtempSync(join(tmpdir(), "kept-tls-"));
+        execFileSync("openssl", [
+          "req", "-x509", "-newkey", "ec", "-pkeyopt", "ec_paramgen_curve:P-256", "-nodes", "-days", "1",
+          "-subj", "/CN=127.0.0.1", "-addext", "subjectAltName=IP:127.0.0.1,DNS:localhost",
+          "-keyout", join(dir, "key.pem"), "-out", join(dir, "cert.pem"),
+        ], { stdio: "ignore" });
+        const cert = readFileSync(join(dir, "cert.pem"), "utf8");
+        const key = readFileSync(join(dir, "key.pem"), "utf8");
+        const previousCa = tls.getCACertificates("default");
+        tls.setDefaultCACertificates([...previousCa, cert]);
+
+        let hits = 0;
+        const secret = createServer((_q, r) => {
+          hits++;
+          r.end("<title>SECRET</title>");
+        });
+        await new Promise<void>((r) => secret.listen(0, "127.0.0.1", r));
+        const secretUrl = `http://127.0.0.1:${(secret.address() as AddressInfo).port}/x`;
+        const site = createHttpsServer({ cert, key }, (_q, r) => r.writeHead(302, { location: secretUrl }).end());
+        await new Promise<void>((r) => site.listen(0, "127.0.0.1", r));
+        const siteOrigin = `https://127.0.0.1:${(site.address() as AddressInfo).port}`;
+        const session = await makeProvider().open({ network: { allowOrigins: [siteOrigin] } });
+        try {
+          const page = await session.context.newPage();
+          await page.goto(`${siteOrigin}/`).catch(() => null);
+          expect(hits).toBe(0);
+          expect(session.blocked.some((b) => b.url.includes(new URL(secretUrl).host))).toBe(true);
+        } finally {
+          await session.close();
+          tls.setDefaultCACertificates(previousCa);
+          await new Promise<void>((r) => secret.close(() => r()));
+          await new Promise<void>((r) => site.close(() => r()));
+          rmSync(dir, { recursive: true, force: true });
+        }
+      },
+      30_000,
+    );
+  });
 });
+
+function hasOpenssl(): boolean {
+  try {
+    execFileSync("openssl", ["version"], { stdio: "ignore" });
+    return true;
+  } catch {
+    return false;
+  }
+}

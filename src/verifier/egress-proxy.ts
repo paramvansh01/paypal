@@ -22,11 +22,16 @@ export interface EgressProxy {
 
 type Decision = { ok: true; address: string } | { ok: false; reason: string };
 
-async function decide(scheme: "http" | "https", hostname: string, port: number, policy: NetworkPolicy): Promise<Decision> {
+async function decide(scheme: "http" | "https" | "tunnel", hostname: string, port: number, policy: NetworkPolicy): Promise<Decision> {
   const host = hostname.replace(/^\[|\]$/g, "");
-  const defaultPort = scheme === "https" ? 443 : 80;
-  const origin = `${scheme}://${host.includes(":") ? `[${host}]` : host}${port === defaultPort ? "" : `:${port}`}`;
-  const allowed = policy.allowOrigins.includes(origin);
+  const originFor = (s: "http" | "https") =>
+    `${s}://${host.includes(":") ? `[${host}]` : host}${port === (s === "https" ? 443 : 80) ? "" : `:${port}`}`;
+  // A CONNECT tunnel names only host:port, not the scheme inside it. Playwright's own fetcher
+  // (route.fetch) tunnels plain http too, so an allowed origin of either scheme opens the tunnel.
+  const allowed =
+    scheme === "tunnel"
+      ? policy.allowOrigins.includes(originFor("https")) || policy.allowOrigins.includes(originFor("http"))
+      : policy.allowOrigins.includes(originFor(scheme));
 
   let addresses: string[];
   if (isIP(host)) addresses = [host];
@@ -78,8 +83,31 @@ export async function startEgressProxy(policy: NetworkPolicy, sink: EgressProxy[
     headers.host = target.host;
     const upstream = httpRequest(
       { host: d.address, port, method: req.method, path: `${target.pathname}${target.search}`, headers, setHost: false },
-      (up) => {
-        res.writeHead(up.statusCode ?? 502, up.headers);
+      async (up) => {
+        // Check redirect targets here too. Some browsers (WebKit on macOS 26) connect to loopback
+        // directly instead of through this proxy, and Playwright routes miss redirect hops, so a
+        // redirect into 127.0.0.1 would otherwise reach a local service unchecked.
+        const location = up.headers.location;
+        const status = up.statusCode ?? 502;
+        if (status >= 300 && status < 400 && typeof location === "string") {
+          let next: URL | undefined;
+          try {
+            next = new URL(location, target);
+          } catch {
+            next = undefined;
+          }
+          if (next && (next.protocol === "http:" || next.protocol === "https:")) {
+            const scheme = next.protocol === "https:" ? "https" : "http";
+            const nd = await decide(scheme, next.hostname, Number(next.port || (scheme === "https" ? 443 : 80)), policy);
+            if (!nd.ok) {
+              up.resume();
+              blocked.push({ url: next.href, reason: nd.reason });
+              res.writeHead(403, { "content-type": "text/plain" }).end(`Blocked by Kept verifier: ${nd.reason}`);
+              return;
+            }
+          }
+        }
+        res.writeHead(status, up.headers);
         up.pipe(res);
       },
     );
@@ -102,7 +130,7 @@ export async function startEgressProxy(policy: NetworkPolicy, sink: EgressProxy[
     }
     const [, host, portStr] = m;
     const port = Number(portStr);
-    const d = await decide("https", host!, port, policy);
+    const d = await decide("tunnel", host!, port, policy);
     if (!d.ok) {
       blocked.push({ url: `https://${req.url}`, reason: d.reason });
       client.end(`HTTP/1.1 403 Forbidden\r\ncontent-type: text/plain\r\n\r\nBlocked by Kept verifier: ${d.reason}`);

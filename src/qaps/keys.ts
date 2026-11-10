@@ -32,6 +32,8 @@ export class KeyError extends Error {
 }
 
 const B64URL = /^[A-Za-z0-9_-]+$/;
+/** RFC 8410 PKCS#8 header for an Ed25519 private key; the 32-byte seed follows. */
+const ED25519_PKCS8_PREFIX = Buffer.from("302e020100300506032b657004220420", "hex");
 
 export function fingerprintOf(publicKeyB64url: string): string {
   return createHash("sha256").update(Buffer.from(publicKeyB64url, "base64url")).digest("hex");
@@ -56,9 +58,13 @@ export class VerifierKey {
     if (jwk.kty !== "OKP" || jwk.crv !== "Ed25519" || typeof jwk.d !== "string" || typeof jwk.x !== "string") {
       throw new KeyError(`key for ${id} is not an Ed25519 private JWK`);
     }
+    // Load from `d` alone (PKCS#8 DER), so the `x` check below runs the same on every
+    // Node version. Node 26+ rejects a mismatched `x` inside createPrivateKey when given the JWK.
+    const d = Buffer.from(jwk.d, "base64url");
+    if (!B64URL.test(jwk.d) || d.length !== 32) throw new KeyError(`key for ${id} could not be loaded: bad private key length`);
     let privateKey: KeyObject;
     try {
-      privateKey = createPrivateKey({ key: jwk, format: "jwk" });
+      privateKey = createPrivateKey({ key: Buffer.concat([ED25519_PKCS8_PREFIX, d]), format: "der", type: "pkcs8" });
     } catch (err) {
       throw new KeyError(`key for ${id} could not be loaded: ${(err as Error).message}`);
     }
