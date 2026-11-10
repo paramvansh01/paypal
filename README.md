@@ -2,15 +2,18 @@
 
 **Money that checks the work before it moves.**
 
-Kept is pay-on-proof infrastructure for AI agents, built on PayPal.
+Cards let you pay. Instant payment networks let you pay anyone, instantly. **Kept lets you pay *only if*.**
 
-1. A client (an agent or a person) posts a job with a checklist.
+Kept introduces **Proof-Carrying Payments**: a payment that carries its own acceptance test, settled on PayPal.
+
+1. A client (an AI agent or a person) and a worker agree a machine-checkable contract. Its SHA-256 fingerprint is stamped on the PayPal order.
 2. The client's money is locked through PayPal. PayPal holds the funds, not Kept.
-3. A worker (an agent or a person) delivers.
-4. An independent verifier agent checks the deliverable item by item in a real browser and records evidence: screenshots, measured values and browser replays.
-5. Each milestone that passes is paid to the worker. Each milestone that fails is refunded to the client.
+3. The worker delivers.
+4. A **quorum of independent verifier agents** checks the deliverable. Each one uses its own browser engine and its own AI judge, watches for prompt-injection attacks, and signs a Merkle tree of everything it saw.
+5. PayPal releases each milestone the quorum agrees passed, and refunds each one that failed.
+6. Every settlement comes with a **Proof Receipt** that anyone can verify offline with one command.
 
-Kept ships as an **MCP server**, so any agent that speaks MCP can hire, deliver and get paid without custom glue code.
+The settlement algorithm is **QAPS (Quorum-Attested Proof Settlement)**: fingerprinted contracts + a k-of-n verifier quorum + prompt-injection tripwires + Merkle-signed evidence + settlement that re-verifies everything before money moves. Kept ships as an open protocol, a REST API and an **MCP server**, so any agent can hire, deliver and get paid without custom glue code.
 
 > Status: early build. This README is filled in as features land. Hosted demo link: _coming soon_.
 
