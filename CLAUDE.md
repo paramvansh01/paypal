@@ -12,9 +12,9 @@
 
 ```
 Phase:              PQ — QAPS core, pure parts first (P1 PayPal spikes are blocked on H2–H3)
-Next action:        TQ.4 (then T3.5, T3.7, TQ.6)
+Next action:        T3.5 (then T3.7, TQ.6 — after that the full quorum runs locally)
 Active session:     Param — 2026-11-10T16:55+05:30
-Last updated:       2026-11-10 (T3.4 done)
+Last updated:       2026-11-10 (TQ.4 done)
 Payment rail:       UNDECIDED (decided by the spike in P1)
 Blockers:           H1 (no GitHub remote yet; commits are local in ~/kept on Param's Mac). H2–H3 (PayPal sandbox app + accounts) block T1.1 proof and T1.2–T1.6. H4 (Anthropic + KERNEL keys) blocks live verifier and judge runs.
 Hosted demo URL:    —
@@ -522,7 +522,7 @@ The pure parts (TQ.1–TQ.3) need no keys or network and come first. Every task 
 - [x] **TQ.1** Merkle tree per 6.11 (`src/qaps/merkle.ts`): root, inclusion proof, proof verification. Test against published Certificate Transparency test vectors (fetch them; do not trust memory) and property tests (every leaf's proof verifies; any changed leaf, index or sibling fails).
 - [x] **TQ.2** Verifier identity (`src/qaps/keys.ts`, `src/qaps/attestation.ts`): Ed25519 key generation/loading per 6.11, key fingerprints, attestation build/sign/verify over canonical JSON, `/.well-known/kept/verifiers.json`. Tests: valid signature verifies; any changed field, wrong key or truncated signature fails.
 - [x] **TQ.3** Quorum rule and certificate (`src/qaps/quorum.ts`): the rule in 6.9 as a pure function, certificate build, full validation. Tests: every verdict combination for n = 3, k = 2; k − 1 signatures; duplicate verifier; unknown key; mismatched contract hash or URL; forged item verdicts; root that does not match leaves.
-- [ ] **TQ.4** Tripwire DOM scanner per 6.10, with tests on hand-written hostile pages (each hiding technique) and a benign corpus (measure and record the false-positive rate).
+- [x] **TQ.4** Tripwire DOM scanner per 6.10, with tests on hand-written hostile pages (each hiding technique) and a benign corpus (measure and record the false-positive rate).
 - [ ] **TQ.5** Canary integrity for `llm_judgement` per 6.10 (with T3.6). Tests use recorded responses, including a hijacked one.
 - [ ] **TQ.6** Quorum orchestrator: runs the n verifiers in parallel (different browsers and judges), stores leaves, roots, attestations, builds and stores the certificate, writes final verdicts, moves the job to `VERIFIED` (or keeps items `needs_client`). Live verdicts stream to the UI.
 - [ ] **TQ.7** Proof Receipt per 6.12: assembly, `GET /jobs/:id/receipt`, MCP `get_receipt`, download button.
@@ -633,6 +633,7 @@ Format: `YYYY-MM-DD — <name> — decision — reason`
 - 2026-11-10 — Param — verifier-a uses KERNEL only when the deliverable is publicly reachable (a cloud browser cannot reach localhost); otherwise it falls back to local Chromium and the signed attestation's `browser` field says so. KERNEL sessions are headful when a replay is wanted (replays need headful) and have a 300 s timeout. KERNEL provider is untested until a key exists (H4).
 - 2026-11-10 — Param — Demo deliverable is an invented bakery, "Halcyon Crumb" (no real brand). `demo/contract.json` is a fixed 4 × $25 contract with only deterministic checks, so the agent demo is reproducible without an AI key. The `sneaky` site uses four tricks: an HTML comment, a `display:none` block, background-coloured 2px text, and a pre-planted hidden copy of the form's success message (to fool a naive "text appeared" check). Form checks must therefore require the success text to become visible after submitting.
 - 2026-11-10 — Param — Check semantics: `fail` = the deliverable's fault (unreachable, wrong status, missing text); `error` = the verifier could not decide (invalid selector or schema in the contract, crash); `needs_client` = a person decides. Text only counts if visible; a form passes only if its success signal appears after submitting and was not visible before. Checks never use Playwright's `context.request` (it bypasses the egress proxy). Check paths resolve inside the deliverable's directory and cannot climb out. Contract check paths: "/" is the deliverable URL itself.
+- 2026-11-10 — Param — Tripwire rule: instruction-like = an explicit override phrase (ignore previous instructions, verdict=, system prompt/override, role tags) OR (text addressing an AI evaluator AND a directive). Hidden + instruction-like = injection; visible = warning only. Measured: all 15 hiding techniques caught and 0 of 15 realistic benign pages flagged, in both Chromium and WebKit (`tests/tripwire.test.ts`). Known false-positive class: an article *about* prompt injection placed inside a collapsed/hidden section. Say "reduces", never "eliminates".
 - 2026-11-10 — Param — Config enforces 2k > n for the quorum (default 2-of-3), so two conflicting quorums can never both form. Verifier keys are Ed25519 JWKs in `data/keys/<id>.jwk.json` (mode 0600, created on first boot) or `VERIFIER_KEYS_JSON`; the loader re-derives the public key instead of trusting the stored one. Attestations are signed over canonical JSON and carry the key fingerprint; `leaf_count` is signed because an RFC 6962 root alone does not pin the tree size.
 
 ---
