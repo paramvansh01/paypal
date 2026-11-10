@@ -12,10 +12,10 @@
 
 ```
 Phase:              PQ — QAPS core (the verifier quorum works end to end locally; PayPal spikes still blocked on H2–H3)
-Next action:        TQ.10 — `docs/PROTOCOL.md`: Kept Protocol v1 (contract, attestation, certificate, quorum rule, receipt + seal, verification steps).
-Suggested order:    TQ.10 → TQ.10 → T3.9 → T4.1 → T4.4 → T5.1 (all need no keys). With H2–H3 done, jump to T1.1 proof + P1 spikes. With H4, T3.1/T3.2/T3.6/TQ.5.
+Next action:        T3.9 — evidence report page (checklist, contract hash, per-verifier verdicts side by side, quorum result, evidence, PayPal IDs, timeline, receipt download via `/jobs/:id/receipt?download=1`).
+Suggested order:    T3.9 → TQ.10 → T3.9 → T4.1 → T4.4 → T5.1 (all need no keys). With H2–H3 done, jump to T1.1 proof + P1 spikes. With H4, T3.1/T3.2/T3.6/TQ.5.
 Active session:     Aashman — 2026-11-10T13:38Z
-Last updated:       2026-11-10 (Aashman: T3.8, TQ.7, TQ.8, T2.6 done)
+Last updated:       2026-11-10 (Aashman: T3.8, TQ.7, TQ.8, T2.6, TQ.10 done)
 Payment rail:       UNDECIDED (decided by the spike in P1)
 Blockers:           H2–H3 (PayPal sandbox) block T1.1 proof and all of P1, T2.3, T2.4, TQ.9 binding. H4 (Anthropic + KERNEL keys) blocks T3.1/T3.2/T3.6/TQ.5 live runs and the KERNEL browser path.
 Hosted demo URL:    —
@@ -531,7 +531,7 @@ The pure parts (TQ.1–TQ.3) need no keys or network and come first. Every task 
 - [x] **TQ.8** Receipt verifiers: `npm run verify-receipt` and zero-dependency `tools/verify-receipt.mjs`. Tamper tests: flipping any single byte of a sample receipt fails with a message naming what broke.
   *Done when:* a tamper test over every field of a real receipt passes, and the standalone script runs with plain `node` in an empty folder.
 - [~] **TQ.9** (Param — validate-before-settle done in T2.5; PayPal field binding waits for the rail spike) Settlement verifies, not trusts: `settle` validates the certificate from scratch before any PayPal call, and binds the certificate hash to the PayPal capture/refund (VERIFY fields).
-- [ ] **TQ.10** `docs/PROTOCOL.md`: Kept Protocol v1 — contract format and hashing, attestation and certificate formats, quorum rule, receipt format and verification steps — complete enough for someone else to implement a compatible verifier.
+- [x] **TQ.10** `docs/PROTOCOL.md`: Kept Protocol v1 — contract format and hashing, attestation and certificate formats, quorum rule, receipt format and verification steps — complete enough for someone else to implement a compatible verifier.
 - [ ] **TQ.11** Prior-art check: search for existing systems that combine conditional payment, AI verification, verifier quorums or signed evidence (escrow APIs, smart-contract oracles, agent payment protocols such as AP2/x402). Record findings in `docs/PRIOR_ART.md` and write the exact novelty sentence we are allowed to use.
 - [ ] **TQ.12** (SHOULD) Browser-side receipt verification on the receipt page with WebCrypto (replaces T6.3).
 
@@ -650,6 +650,7 @@ Format: `YYYY-MM-DD — <name> — decision — reason`
 - 2026-11-10 — Aashman — API auth: party tokens `<party_id>.<hex HMAC-SHA256(MCP_AUTH_TOKEN, "kept-party:"+party_id)>`, nothing stored (`src/server/auth.ts`, `npm run party-token`). Reads are public (like receipts); every write needs a token; without MCP_AUTH_TOKEN writes answer 503. The MCP server (T4.1) should use the same tokens. Role rules live in `src/core/jobs.ts` (shared with MCP): client posts, locks, confirms, cancels, decides items; worker submits; either party proposes/accepts the checklist, starts verification, settles.
 - 2026-11-10 — Aashman — Checklist agreement: the server always sets the contract's `quorum` (its own keys, `QUORUM_K`); a submitted `quorum` is refused unless it is exactly the server's. Each party accepts a specific `checklist_hash` (stale hash → 400), recorded as `CHECKLIST_ACCEPTED` events; any revision makes acceptances lapse unless the hash is identical; both on the current hash → AGREED. A job's budget must equal the checklist total.
 - 2026-11-10 — Aashman — `POST /jobs/:id/verify` answers 202 and runs in the background (`?wait=1` waits); a second request is refused because verifyJob moves the job to VERIFYING synchronously. The server's own origins (PUBLIC_BASE_URL, 127.0.0.1:PORT, localhost:PORT) are the only private addresses verifiers may open, for the built-in demo sites. `recoverInterruptedVerifications()` runs on server start. Rail failures → 502 with no state change. Ledger reports gross cents only; fees/net wait for the PayPal rail (T2.3/T5.3).
+- 2026-11-10 — Aashman — `docs/PROTOCOL.md` is the normative spec for kept-qaps/1; `docs/protocol-vectors.json` holds deterministic test vectors (fixed public seeds, `npm run protocol-vectors -- --write`). `tests/protocol-vectors.test.ts` fails if the code's output drifts from the committed vectors, checks them with both verifiers and plain node:crypto, and checks the spec quotes the vector hash and every receipt check name. Any deliberate format change: update PROTOCOL.md, regenerate vectors, bump `kept-qaps/N` if it breaks old receipts.
 
 ---
 
@@ -714,3 +715,10 @@ In flight: nothing
 Learned:   Spreading a class instance (`{...new MockRail()}`) drops its methods; subclass test doubles instead. PUBLIC_BASE_URL does not follow PORT (defaults to localhost:3000), so set both when changing the port.
 Next:      TQ.10
 Blockers:  H2–H3 (PayPal) also block real lock/confirm/settle over the API (no rail yet), H4 (Anthropic + KERNEL keys), H5 (`.env` on Aashman's Mac).
+
+### 2026-11-10 23:30 IST — Aashman
+Done:      TQ.10 — `docs/PROTOCOL.md` (encodings, contract + check semantics, verifier steps, leaf/Merkle/attestation, quorum rule + certificate validation, outcomes/settlement, receipt + seal + the 11 named verification checks, key publishing, security considerations) and `docs/protocol-vectors.json` with 6 tests. 580 tests green.
+In flight: nothing
+Learned:   Ed25519 is deterministic, so fixed seeds give byte-stable vectors — any change in canonical JSON, hashing or signing shows up as a vector diff.
+Next:      T3.9
+Blockers:  H2–H3 (PayPal), H4 (Anthropic + KERNEL keys), H5 (`.env` on Aashman's Mac).

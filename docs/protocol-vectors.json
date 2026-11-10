@@ -1,0 +1,1367 @@
+{
+  "protocol": "kept-qaps/1",
+  "note": "Test vectors for docs/PROTOCOL.md. Keys are derived from public seeds: never use them for anything real.",
+  "keys": [
+    {
+      "id": "verifier-a",
+      "seed_hex": "541517d4f45fdbb1bc153b57dafc5b008afcdbd0b6a97412eff3902608dd9e73",
+      "public_key": "sHZ7pt_RUS1R0lqC79oHejGRMvWOBxRoHLCjIdgtj1M",
+      "fingerprint": "f69c562d8d53e05aa94e6fa71e01af1a96dd7dac8d84b424cb68faf2b24efe67"
+    },
+    {
+      "id": "verifier-b",
+      "seed_hex": "d0f9d223d25a9d3c36bfb19fac1aa709dba8d3625dade28157d8098ae68ced22",
+      "public_key": "z3IR154aB0m9ykYoRIB4dAu7LqI5U2VmBWebriLelxQ",
+      "fingerprint": "7c487480a6b57a67e0a5f5ad87a6cad7326f9252f17d51313427995b6efa1091"
+    },
+    {
+      "id": "verifier-c",
+      "seed_hex": "191fc9a98c583579af07d546afdaafe8d420cb627ab89c4f1eb2abb1b158d19b",
+      "public_key": "MpceojtvorAnED9NNIAxU_CeK7BEbPH36aZ__G9yVRM",
+      "fingerprint": "47ef508e61377fb3a190b787874dfe823e40ef24e7f27fc60edd35157a2c8f76"
+    },
+    {
+      "id": "kept-issuer",
+      "seed_hex": "9957e1677d505c36a9ccf8e327d642be54e9db04e3a9619b92bf3a771e889165",
+      "public_key": "hztI4yRqfxd9KO-zvpeb_dwSXX8ZyBnWVStU2ILbO_M",
+      "fingerprint": "a750ac5a428e4e46fdcaa22cb7b25d92608030b2b9c0802da2011cf3bbe654ec"
+    }
+  ],
+  "canonical_json": {
+    "input": {
+      "b": [
+        3,
+        1,
+        {
+          "z": true,
+          "a": null
+        }
+      ],
+      "a": "é \"quoted\"",
+      "A": -7,
+      "_": {
+        "y": 1,
+        "x": 2
+      }
+    },
+    "output": "{\"A\":-7,\"_\":{\"x\":2,\"y\":1},\"a\":\"é \\\"quoted\\\"\",\"b\":[3,1,{\"a\":null,\"z\":true}]}"
+  },
+  "contract": {
+    "input_with_defaults_omitted": {
+      "version": 1,
+      "currency": "USD",
+      "total_cents": 5000,
+      "quorum": {
+        "n": 3,
+        "k": 2,
+        "verifiers": [
+          {
+            "id": "verifier-a",
+            "public_key": "sHZ7pt_RUS1R0lqC79oHejGRMvWOBxRoHLCjIdgtj1M"
+          },
+          {
+            "id": "verifier-b",
+            "public_key": "z3IR154aB0m9ykYoRIB4dAu7LqI5U2VmBWebriLelxQ"
+          },
+          {
+            "id": "verifier-c",
+            "public_key": "MpceojtvorAnED9NNIAxU_CeK7BEbPH36aZ__G9yVRM"
+          }
+        ]
+      },
+      "milestones": [
+        {
+          "title": "Page live",
+          "amount_cents": 3000,
+          "items": [
+            {
+              "description": "Loads",
+              "check_type": "http_status",
+              "params": {}
+            },
+            {
+              "description": "Shows the name",
+              "check_type": "text_present",
+              "params": {
+                "text": "Acme"
+              }
+            }
+          ]
+        },
+        {
+          "title": "Design approved",
+          "amount_cents": 2000,
+          "items": [
+            {
+              "description": "Client likes it",
+              "check_type": "client_approval",
+              "params": {}
+            }
+          ]
+        }
+      ]
+    },
+    "normalised": {
+      "version": 1,
+      "currency": "USD",
+      "total_cents": 5000,
+      "milestones": [
+        {
+          "title": "Page live",
+          "amount_cents": 3000,
+          "items": [
+            {
+              "description": "Loads",
+              "check_type": "http_status",
+              "params": {
+                "path": "/",
+                "expected": 200
+              }
+            },
+            {
+              "description": "Shows the name",
+              "check_type": "text_present",
+              "params": {
+                "path": "/",
+                "text": "Acme"
+              }
+            }
+          ]
+        },
+        {
+          "title": "Design approved",
+          "amount_cents": 2000,
+          "items": [
+            {
+              "description": "Client likes it",
+              "check_type": "client_approval",
+              "params": {}
+            }
+          ]
+        }
+      ],
+      "quorum": {
+        "n": 3,
+        "k": 2,
+        "verifiers": [
+          {
+            "id": "verifier-a",
+            "public_key": "sHZ7pt_RUS1R0lqC79oHejGRMvWOBxRoHLCjIdgtj1M"
+          },
+          {
+            "id": "verifier-b",
+            "public_key": "z3IR154aB0m9ykYoRIB4dAu7LqI5U2VmBWebriLelxQ"
+          },
+          {
+            "id": "verifier-c",
+            "public_key": "MpceojtvorAnED9NNIAxU_CeK7BEbPH36aZ__G9yVRM"
+          }
+        ]
+      }
+    },
+    "canonical_json": "{\"currency\":\"USD\",\"milestones\":[{\"amount_cents\":3000,\"items\":[{\"check_type\":\"http_status\",\"description\":\"Loads\",\"params\":{\"expected\":200,\"path\":\"/\"}},{\"check_type\":\"text_present\",\"description\":\"Shows the name\",\"params\":{\"path\":\"/\",\"text\":\"Acme\"}}],\"title\":\"Page live\"},{\"amount_cents\":2000,\"items\":[{\"check_type\":\"client_approval\",\"description\":\"Client likes it\",\"params\":{}}],\"title\":\"Design approved\"}],\"quorum\":{\"k\":2,\"n\":3,\"verifiers\":[{\"id\":\"verifier-a\",\"public_key\":\"sHZ7pt_RUS1R0lqC79oHejGRMvWOBxRoHLCjIdgtj1M\"},{\"id\":\"verifier-b\",\"public_key\":\"z3IR154aB0m9ykYoRIB4dAu7LqI5U2VmBWebriLelxQ\"},{\"id\":\"verifier-c\",\"public_key\":\"MpceojtvorAnED9NNIAxU_CeK7BEbPH36aZ__G9yVRM\"}]},\"total_cents\":5000,\"version\":1}",
+    "contract_hash": "6f36f8f1173ea8ad6c25aa439c58f7fd8f2c6a842923349b0834c6eec04278f9"
+  },
+  "rfc6962": {
+    "leaf_inputs_utf8": [
+      "",
+      "a",
+      "b"
+    ],
+    "leaf_hashes": [
+      "6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d",
+      "022a6979e6dab7aa5ae4c3e5e45f7e977112a7e63593820dbec1ec738a24f93c",
+      "57eb35615d47f34ec714cacdf5fd74608a5e8e102724e80b24b287c0c27b6a31"
+    ],
+    "root_of_first_two": "688dc6244b041199e7ab4990df6340ce3dc14caa5cd5a0e1131addaa1209e1a6",
+    "root_of_all_three": "652297b9504045a600942bcdf9ae5c2400be42d51139c7fb63ab3ee439ff110d",
+    "empty_root": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "merkle": [
+    {
+      "verifier_id": "verifier-a",
+      "leaf_canonical_json": [
+        "{\"artifacts\":{\"details_sha256\":\"84ccd2b8ab4efa4ab3f1df0d9850119b605c7249ab68750796c5a4453ab8a7f2\",\"screenshot_sha256\":\"0b368b5ae8bea66ddc255ce0afd63e67583a0a5d7d24fbd457ecb016780fe82e\"},\"check_type\":\"http_status\",\"i\":0,\"injection\":false,\"m\":0,\"measured_value\":\"200\",\"summary\":\"verifier-a: pass\",\"verdict\":\"pass\"}",
+        "{\"artifacts\":{\"details_sha256\":\"f33820622ad4a072a1fb83476a629ac1037a9da00deda0ceb93e908af9e6e7e5\",\"screenshot_sha256\":\"82e60066a2de261b6653bcdda90d1cb9a7af2f474cecd82e8d371e8384d72315\"},\"check_type\":\"text_present\",\"i\":1,\"injection\":false,\"m\":0,\"measured_value\":null,\"summary\":\"verifier-a: pass\",\"verdict\":\"pass\"}",
+        "{\"artifacts\":{\"details_sha256\":\"a784bbb2e3a8d6385f5e2e25a12f8647fcf43c52cacc516277f8f1106a088574\"},\"check_type\":\"client_approval\",\"i\":0,\"injection\":false,\"m\":1,\"measured_value\":null,\"summary\":\"verifier-a: needs_client\",\"verdict\":\"needs_client\"}"
+      ],
+      "leaf_hashes": [
+        "06d09a3eb57f7ec7ae56cc507e2d3b72ef7feac7507fd90f7b2dbc89ad7b6a79",
+        "77c078e54caf17ad1f4fbf81de85dd1aa6f49634be51d9d75bc7fd58897f634f",
+        "eb3790909e3c4c4998b4b1d12fe2984f8cede02331f1d56c7e57a2a1e05c49ce"
+      ],
+      "merkle_root": "4aaca3359c97775b5c8dd11a2ead4c62c3bef510622be29e37714f22bc6d89b2"
+    },
+    {
+      "verifier_id": "verifier-b",
+      "leaf_canonical_json": [
+        "{\"artifacts\":{\"details_sha256\":\"84ccd2b8ab4efa4ab3f1df0d9850119b605c7249ab68750796c5a4453ab8a7f2\",\"screenshot_sha256\":\"0b368b5ae8bea66ddc255ce0afd63e67583a0a5d7d24fbd457ecb016780fe82e\"},\"check_type\":\"http_status\",\"i\":0,\"injection\":false,\"m\":0,\"measured_value\":\"200\",\"summary\":\"verifier-b: pass\",\"verdict\":\"pass\"}",
+        "{\"artifacts\":{\"details_sha256\":\"f33820622ad4a072a1fb83476a629ac1037a9da00deda0ceb93e908af9e6e7e5\",\"screenshot_sha256\":\"82e60066a2de261b6653bcdda90d1cb9a7af2f474cecd82e8d371e8384d72315\"},\"check_type\":\"text_present\",\"i\":1,\"injection\":false,\"m\":0,\"measured_value\":null,\"summary\":\"verifier-b: pass\",\"verdict\":\"pass\"}",
+        "{\"artifacts\":{\"details_sha256\":\"a784bbb2e3a8d6385f5e2e25a12f8647fcf43c52cacc516277f8f1106a088574\"},\"check_type\":\"client_approval\",\"i\":0,\"injection\":false,\"m\":1,\"measured_value\":null,\"summary\":\"verifier-b: needs_client\",\"verdict\":\"needs_client\"}"
+      ],
+      "leaf_hashes": [
+        "673554afab9a91dcaeb5c8404eb14ec9f182a0c4e7dfcabe988c6fba26a241e3",
+        "f45a335b65c653ca5a35f5066fd51e460d8d0cff59c0b7e9f658c25a18f66b91",
+        "b01c3112ac7eb7e2005a5e9d61a41955140d61be85e2766e9b6a66ebfc7450ea"
+      ],
+      "merkle_root": "6f75dceb3bd165ba27d4af78b6a780c50a6d224abf981c4baad22070304becea"
+    },
+    {
+      "verifier_id": "verifier-c",
+      "leaf_canonical_json": [
+        "{\"artifacts\":{\"details_sha256\":\"84ccd2b8ab4efa4ab3f1df0d9850119b605c7249ab68750796c5a4453ab8a7f2\",\"screenshot_sha256\":\"0b368b5ae8bea66ddc255ce0afd63e67583a0a5d7d24fbd457ecb016780fe82e\"},\"check_type\":\"http_status\",\"i\":0,\"injection\":false,\"m\":0,\"measured_value\":\"200\",\"summary\":\"verifier-c: pass\",\"verdict\":\"pass\"}",
+        "{\"artifacts\":{\"details_sha256\":\"f33820622ad4a072a1fb83476a629ac1037a9da00deda0ceb93e908af9e6e7e5\",\"screenshot_sha256\":\"82e60066a2de261b6653bcdda90d1cb9a7af2f474cecd82e8d371e8384d72315\"},\"check_type\":\"text_present\",\"i\":1,\"injection\":false,\"m\":0,\"measured_value\":null,\"summary\":\"verifier-c: fail\",\"verdict\":\"fail\"}",
+        "{\"artifacts\":{\"details_sha256\":\"a784bbb2e3a8d6385f5e2e25a12f8647fcf43c52cacc516277f8f1106a088574\"},\"check_type\":\"client_approval\",\"i\":0,\"injection\":false,\"m\":1,\"measured_value\":null,\"summary\":\"verifier-c: needs_client\",\"verdict\":\"needs_client\"}"
+      ],
+      "leaf_hashes": [
+        "9c95b30818c79da806bf604c6a448d5f66e2110a92dee4e50ec0f370fc186868",
+        "0eb91416929b4d5929eed5b78ffd36f572925cf0794da9d587c6f8a921c68aa5",
+        "0ed2901daa6bb463803bef1d4e75c9325c8dd57747f78f5a0641c0135245a4a3"
+      ],
+      "merkle_root": "61588ab57e0e7aa854f108f1a0e1c03416230dfad2d3a1306a0cc548ecd1a37e"
+    }
+  ],
+  "attestations": [
+    {
+      "signed_bytes_utf8": "{\"browser\":\"local-chromium 140.0\",\"contract_hash\":\"6f36f8f1173ea8ad6c25aa439c58f7fd8f2c6a842923349b0834c6eec04278f9\",\"deliverable_url\":\"https://deliverable.example/site/\",\"issued_at\":\"2026-11-10T12:00:00.000Z\",\"job_id\":\"job_vectors01\",\"judge_model\":\"claude-opus-5-5\",\"leaf_count\":3,\"merkle_root\":\"4aaca3359c97775b5c8dd11a2ead4c62c3bef510622be29e37714f22bc6d89b2\",\"type\":\"attestation\",\"v\":\"kept-qaps/1\",\"verifier_id\":\"verifier-a\"}",
+      "attestation": {
+        "payload": {
+          "v": "kept-qaps/1",
+          "type": "attestation",
+          "job_id": "job_vectors01",
+          "contract_hash": "6f36f8f1173ea8ad6c25aa439c58f7fd8f2c6a842923349b0834c6eec04278f9",
+          "deliverable_url": "https://deliverable.example/site/",
+          "verifier_id": "verifier-a",
+          "browser": "local-chromium 140.0",
+          "judge_model": "claude-opus-5-5",
+          "merkle_root": "4aaca3359c97775b5c8dd11a2ead4c62c3bef510622be29e37714f22bc6d89b2",
+          "leaf_count": 3,
+          "issued_at": "2026-11-10T12:00:00.000Z"
+        },
+        "signature": "8RRi3Y7F8jSMg6s0Ob6u_T-ab3KSxj11KL6-oWtVzQY8VqH_4L9OhbTLtzzXuBuDlJjCyoDiKwMBFg8MU9KbDg",
+        "key_fingerprint": "f69c562d8d53e05aa94e6fa71e01af1a96dd7dac8d84b424cb68faf2b24efe67"
+      }
+    },
+    {
+      "signed_bytes_utf8": "{\"browser\":\"local-chromium 140.0\",\"contract_hash\":\"6f36f8f1173ea8ad6c25aa439c58f7fd8f2c6a842923349b0834c6eec04278f9\",\"deliverable_url\":\"https://deliverable.example/site/\",\"issued_at\":\"2026-11-10T12:00:00.000Z\",\"job_id\":\"job_vectors01\",\"judge_model\":\"claude-opus-5-5\",\"leaf_count\":3,\"merkle_root\":\"6f75dceb3bd165ba27d4af78b6a780c50a6d224abf981c4baad22070304becea\",\"type\":\"attestation\",\"v\":\"kept-qaps/1\",\"verifier_id\":\"verifier-b\"}",
+      "attestation": {
+        "payload": {
+          "v": "kept-qaps/1",
+          "type": "attestation",
+          "job_id": "job_vectors01",
+          "contract_hash": "6f36f8f1173ea8ad6c25aa439c58f7fd8f2c6a842923349b0834c6eec04278f9",
+          "deliverable_url": "https://deliverable.example/site/",
+          "verifier_id": "verifier-b",
+          "browser": "local-chromium 140.0",
+          "judge_model": "claude-opus-5-5",
+          "merkle_root": "6f75dceb3bd165ba27d4af78b6a780c50a6d224abf981c4baad22070304becea",
+          "leaf_count": 3,
+          "issued_at": "2026-11-10T12:00:00.000Z"
+        },
+        "signature": "0mwh-vRvCHy_IxdOFH1N5wIHfDZQbcweanPF9T1brWFVKt6VsPa0bLrtrbbNoIZr5CaZyJIweEos8HSTQIqtDQ",
+        "key_fingerprint": "7c487480a6b57a67e0a5f5ad87a6cad7326f9252f17d51313427995b6efa1091"
+      }
+    },
+    {
+      "signed_bytes_utf8": "{\"browser\":\"local-chromium 140.0\",\"contract_hash\":\"6f36f8f1173ea8ad6c25aa439c58f7fd8f2c6a842923349b0834c6eec04278f9\",\"deliverable_url\":\"https://deliverable.example/site/\",\"issued_at\":\"2026-11-10T12:00:00.000Z\",\"job_id\":\"job_vectors01\",\"judge_model\":\"claude-opus-5-5\",\"leaf_count\":3,\"merkle_root\":\"61588ab57e0e7aa854f108f1a0e1c03416230dfad2d3a1306a0cc548ecd1a37e\",\"type\":\"attestation\",\"v\":\"kept-qaps/1\",\"verifier_id\":\"verifier-c\"}",
+      "attestation": {
+        "payload": {
+          "v": "kept-qaps/1",
+          "type": "attestation",
+          "job_id": "job_vectors01",
+          "contract_hash": "6f36f8f1173ea8ad6c25aa439c58f7fd8f2c6a842923349b0834c6eec04278f9",
+          "deliverable_url": "https://deliverable.example/site/",
+          "verifier_id": "verifier-c",
+          "browser": "local-chromium 140.0",
+          "judge_model": "claude-opus-5-5",
+          "merkle_root": "61588ab57e0e7aa854f108f1a0e1c03416230dfad2d3a1306a0cc548ecd1a37e",
+          "leaf_count": 3,
+          "issued_at": "2026-11-10T12:00:00.000Z"
+        },
+        "signature": "zvS-BCBmXx4hWlQZh239eXlEjWOJJsZFh85RfT3E2q4nUm7aWwR20exey6wHnc9JXiLvwadDVcN5039XRcnjDA",
+        "key_fingerprint": "47ef508e61377fb3a190b787874dfe823e40ef24e7f27fc60edd35157a2c8f76"
+      }
+    }
+  ],
+  "certificate": {
+    "certificate": {
+      "v": "kept-qaps/1",
+      "type": "quorum_certificate",
+      "job_id": "job_vectors01",
+      "contract_hash": "6f36f8f1173ea8ad6c25aa439c58f7fd8f2c6a842923349b0834c6eec04278f9",
+      "deliverable_url": "https://deliverable.example/site/",
+      "k": 2,
+      "n": 3,
+      "attestations": [
+        {
+          "payload": {
+            "v": "kept-qaps/1",
+            "type": "attestation",
+            "job_id": "job_vectors01",
+            "contract_hash": "6f36f8f1173ea8ad6c25aa439c58f7fd8f2c6a842923349b0834c6eec04278f9",
+            "deliverable_url": "https://deliverable.example/site/",
+            "verifier_id": "verifier-a",
+            "browser": "local-chromium 140.0",
+            "judge_model": "claude-opus-5-5",
+            "merkle_root": "4aaca3359c97775b5c8dd11a2ead4c62c3bef510622be29e37714f22bc6d89b2",
+            "leaf_count": 3,
+            "issued_at": "2026-11-10T12:00:00.000Z"
+          },
+          "signature": "8RRi3Y7F8jSMg6s0Ob6u_T-ab3KSxj11KL6-oWtVzQY8VqH_4L9OhbTLtzzXuBuDlJjCyoDiKwMBFg8MU9KbDg",
+          "key_fingerprint": "f69c562d8d53e05aa94e6fa71e01af1a96dd7dac8d84b424cb68faf2b24efe67"
+        },
+        {
+          "payload": {
+            "v": "kept-qaps/1",
+            "type": "attestation",
+            "job_id": "job_vectors01",
+            "contract_hash": "6f36f8f1173ea8ad6c25aa439c58f7fd8f2c6a842923349b0834c6eec04278f9",
+            "deliverable_url": "https://deliverable.example/site/",
+            "verifier_id": "verifier-b",
+            "browser": "local-chromium 140.0",
+            "judge_model": "claude-opus-5-5",
+            "merkle_root": "6f75dceb3bd165ba27d4af78b6a780c50a6d224abf981c4baad22070304becea",
+            "leaf_count": 3,
+            "issued_at": "2026-11-10T12:00:00.000Z"
+          },
+          "signature": "0mwh-vRvCHy_IxdOFH1N5wIHfDZQbcweanPF9T1brWFVKt6VsPa0bLrtrbbNoIZr5CaZyJIweEos8HSTQIqtDQ",
+          "key_fingerprint": "7c487480a6b57a67e0a5f5ad87a6cad7326f9252f17d51313427995b6efa1091"
+        },
+        {
+          "payload": {
+            "v": "kept-qaps/1",
+            "type": "attestation",
+            "job_id": "job_vectors01",
+            "contract_hash": "6f36f8f1173ea8ad6c25aa439c58f7fd8f2c6a842923349b0834c6eec04278f9",
+            "deliverable_url": "https://deliverable.example/site/",
+            "verifier_id": "verifier-c",
+            "browser": "local-chromium 140.0",
+            "judge_model": "claude-opus-5-5",
+            "merkle_root": "61588ab57e0e7aa854f108f1a0e1c03416230dfad2d3a1306a0cc548ecd1a37e",
+            "leaf_count": 3,
+            "issued_at": "2026-11-10T12:00:00.000Z"
+          },
+          "signature": "zvS-BCBmXx4hWlQZh239eXlEjWOJJsZFh85RfT3E2q4nUm7aWwR20exey6wHnc9JXiLvwadDVcN5039XRcnjDA",
+          "key_fingerprint": "47ef508e61377fb3a190b787874dfe823e40ef24e7f27fc60edd35157a2c8f76"
+        }
+      ],
+      "items": [
+        {
+          "m": 0,
+          "i": 0,
+          "verdict": "pass",
+          "reason": "quorum"
+        },
+        {
+          "m": 0,
+          "i": 1,
+          "verdict": "pass",
+          "reason": "quorum"
+        },
+        {
+          "m": 1,
+          "i": 0,
+          "verdict": "needs_client",
+          "reason": "client"
+        }
+      ],
+      "issued_at": "2026-11-10T12:00:00.000Z"
+    },
+    "certificate_hash": "86f252b0f415fbf8aa830a30001a0b12a39bb7b71028e4846310c933a54b276d"
+  },
+  "quorum_rule": [
+    {
+      "check_type": "text_present",
+      "k": 2,
+      "ballots": [
+        {
+          "verdict": "pass",
+          "injection": false
+        },
+        {
+          "verdict": "pass",
+          "injection": false
+        },
+        {
+          "verdict": "fail",
+          "injection": false
+        }
+      ],
+      "decision": {
+        "verdict": "pass",
+        "reason": "quorum"
+      }
+    },
+    {
+      "check_type": "text_present",
+      "k": 2,
+      "ballots": [
+        {
+          "verdict": "pass",
+          "injection": false
+        },
+        {
+          "verdict": "fail",
+          "injection": false
+        },
+        {
+          "verdict": "error",
+          "injection": false
+        }
+      ],
+      "decision": {
+        "verdict": "needs_client",
+        "reason": "no_quorum"
+      }
+    },
+    {
+      "check_type": "form_submits",
+      "k": 2,
+      "ballots": [
+        {
+          "verdict": "pass",
+          "injection": true
+        },
+        {
+          "verdict": "pass",
+          "injection": false
+        },
+        {
+          "verdict": "fail",
+          "injection": false
+        }
+      ],
+      "decision": {
+        "verdict": "fail",
+        "reason": "quorum"
+      }
+    },
+    {
+      "check_type": "form_submits",
+      "k": 2,
+      "ballots": [
+        {
+          "verdict": "fail",
+          "injection": true
+        },
+        {
+          "verdict": "pass",
+          "injection": true
+        },
+        {
+          "verdict": "pass",
+          "injection": false
+        }
+      ],
+      "decision": {
+        "verdict": "fail",
+        "reason": "injection"
+      }
+    },
+    {
+      "check_type": "client_approval",
+      "k": 2,
+      "ballots": [
+        {
+          "verdict": "pass",
+          "injection": false
+        },
+        {
+          "verdict": "pass",
+          "injection": false
+        },
+        {
+          "verdict": "pass",
+          "injection": false
+        }
+      ],
+      "decision": {
+        "verdict": "needs_client",
+        "reason": "client"
+      }
+    }
+  ],
+  "receipt": {
+    "receipt": {
+      "v": "kept-qaps/1",
+      "type": "proof_receipt",
+      "job": {
+        "id": "job_vectors01",
+        "title": "Acme site",
+        "status": "SETTLED",
+        "rail": "auth_capture",
+        "deliverable_url": "https://deliverable.example/site/"
+      },
+      "contract": {
+        "version": 1,
+        "currency": "USD",
+        "total_cents": 5000,
+        "milestones": [
+          {
+            "title": "Page live",
+            "amount_cents": 3000,
+            "items": [
+              {
+                "description": "Loads",
+                "check_type": "http_status",
+                "params": {
+                  "path": "/",
+                  "expected": 200
+                }
+              },
+              {
+                "description": "Shows the name",
+                "check_type": "text_present",
+                "params": {
+                  "path": "/",
+                  "text": "Acme"
+                }
+              }
+            ]
+          },
+          {
+            "title": "Design approved",
+            "amount_cents": 2000,
+            "items": [
+              {
+                "description": "Client likes it",
+                "check_type": "client_approval",
+                "params": {}
+              }
+            ]
+          }
+        ],
+        "quorum": {
+          "n": 3,
+          "k": 2,
+          "verifiers": [
+            {
+              "id": "verifier-a",
+              "public_key": "sHZ7pt_RUS1R0lqC79oHejGRMvWOBxRoHLCjIdgtj1M"
+            },
+            {
+              "id": "verifier-b",
+              "public_key": "z3IR154aB0m9ykYoRIB4dAu7LqI5U2VmBWebriLelxQ"
+            },
+            {
+              "id": "verifier-c",
+              "public_key": "MpceojtvorAnED9NNIAxU_CeK7BEbPH36aZ__G9yVRM"
+            }
+          ]
+        }
+      },
+      "contract_hash": "6f36f8f1173ea8ad6c25aa439c58f7fd8f2c6a842923349b0834c6eec04278f9",
+      "certificate": {
+        "v": "kept-qaps/1",
+        "type": "quorum_certificate",
+        "job_id": "job_vectors01",
+        "contract_hash": "6f36f8f1173ea8ad6c25aa439c58f7fd8f2c6a842923349b0834c6eec04278f9",
+        "deliverable_url": "https://deliverable.example/site/",
+        "k": 2,
+        "n": 3,
+        "attestations": [
+          {
+            "payload": {
+              "v": "kept-qaps/1",
+              "type": "attestation",
+              "job_id": "job_vectors01",
+              "contract_hash": "6f36f8f1173ea8ad6c25aa439c58f7fd8f2c6a842923349b0834c6eec04278f9",
+              "deliverable_url": "https://deliverable.example/site/",
+              "verifier_id": "verifier-a",
+              "browser": "local-chromium 140.0",
+              "judge_model": "claude-opus-5-5",
+              "merkle_root": "4aaca3359c97775b5c8dd11a2ead4c62c3bef510622be29e37714f22bc6d89b2",
+              "leaf_count": 3,
+              "issued_at": "2026-11-10T12:00:00.000Z"
+            },
+            "signature": "8RRi3Y7F8jSMg6s0Ob6u_T-ab3KSxj11KL6-oWtVzQY8VqH_4L9OhbTLtzzXuBuDlJjCyoDiKwMBFg8MU9KbDg",
+            "key_fingerprint": "f69c562d8d53e05aa94e6fa71e01af1a96dd7dac8d84b424cb68faf2b24efe67"
+          },
+          {
+            "payload": {
+              "v": "kept-qaps/1",
+              "type": "attestation",
+              "job_id": "job_vectors01",
+              "contract_hash": "6f36f8f1173ea8ad6c25aa439c58f7fd8f2c6a842923349b0834c6eec04278f9",
+              "deliverable_url": "https://deliverable.example/site/",
+              "verifier_id": "verifier-b",
+              "browser": "local-chromium 140.0",
+              "judge_model": "claude-opus-5-5",
+              "merkle_root": "6f75dceb3bd165ba27d4af78b6a780c50a6d224abf981c4baad22070304becea",
+              "leaf_count": 3,
+              "issued_at": "2026-11-10T12:00:00.000Z"
+            },
+            "signature": "0mwh-vRvCHy_IxdOFH1N5wIHfDZQbcweanPF9T1brWFVKt6VsPa0bLrtrbbNoIZr5CaZyJIweEos8HSTQIqtDQ",
+            "key_fingerprint": "7c487480a6b57a67e0a5f5ad87a6cad7326f9252f17d51313427995b6efa1091"
+          },
+          {
+            "payload": {
+              "v": "kept-qaps/1",
+              "type": "attestation",
+              "job_id": "job_vectors01",
+              "contract_hash": "6f36f8f1173ea8ad6c25aa439c58f7fd8f2c6a842923349b0834c6eec04278f9",
+              "deliverable_url": "https://deliverable.example/site/",
+              "verifier_id": "verifier-c",
+              "browser": "local-chromium 140.0",
+              "judge_model": "claude-opus-5-5",
+              "merkle_root": "61588ab57e0e7aa854f108f1a0e1c03416230dfad2d3a1306a0cc548ecd1a37e",
+              "leaf_count": 3,
+              "issued_at": "2026-11-10T12:00:00.000Z"
+            },
+            "signature": "zvS-BCBmXx4hWlQZh239eXlEjWOJJsZFh85RfT3E2q4nUm7aWwR20exey6wHnc9JXiLvwadDVcN5039XRcnjDA",
+            "key_fingerprint": "47ef508e61377fb3a190b787874dfe823e40ef24e7f27fc60edd35157a2c8f76"
+          }
+        ],
+        "items": [
+          {
+            "m": 0,
+            "i": 0,
+            "verdict": "pass",
+            "reason": "quorum"
+          },
+          {
+            "m": 0,
+            "i": 1,
+            "verdict": "pass",
+            "reason": "quorum"
+          },
+          {
+            "m": 1,
+            "i": 0,
+            "verdict": "needs_client",
+            "reason": "client"
+          }
+        ],
+        "issued_at": "2026-11-10T12:00:00.000Z"
+      },
+      "certificate_hash": "86f252b0f415fbf8aa830a30001a0b12a39bb7b71028e4846310c933a54b276d",
+      "leaves": {
+        "verifier-a": [
+          {
+            "m": 0,
+            "i": 0,
+            "check_type": "http_status",
+            "verdict": "pass",
+            "injection": false,
+            "measured_value": "200",
+            "summary": "verifier-a: pass",
+            "artifacts": {
+              "details_sha256": "84ccd2b8ab4efa4ab3f1df0d9850119b605c7249ab68750796c5a4453ab8a7f2",
+              "screenshot_sha256": "0b368b5ae8bea66ddc255ce0afd63e67583a0a5d7d24fbd457ecb016780fe82e"
+            }
+          },
+          {
+            "m": 0,
+            "i": 1,
+            "check_type": "text_present",
+            "verdict": "pass",
+            "injection": false,
+            "measured_value": null,
+            "summary": "verifier-a: pass",
+            "artifacts": {
+              "details_sha256": "f33820622ad4a072a1fb83476a629ac1037a9da00deda0ceb93e908af9e6e7e5",
+              "screenshot_sha256": "82e60066a2de261b6653bcdda90d1cb9a7af2f474cecd82e8d371e8384d72315"
+            }
+          },
+          {
+            "m": 1,
+            "i": 0,
+            "check_type": "client_approval",
+            "verdict": "needs_client",
+            "injection": false,
+            "measured_value": null,
+            "summary": "verifier-a: needs_client",
+            "artifacts": {
+              "details_sha256": "a784bbb2e3a8d6385f5e2e25a12f8647fcf43c52cacc516277f8f1106a088574"
+            }
+          }
+        ],
+        "verifier-b": [
+          {
+            "m": 0,
+            "i": 0,
+            "check_type": "http_status",
+            "verdict": "pass",
+            "injection": false,
+            "measured_value": "200",
+            "summary": "verifier-b: pass",
+            "artifacts": {
+              "details_sha256": "84ccd2b8ab4efa4ab3f1df0d9850119b605c7249ab68750796c5a4453ab8a7f2",
+              "screenshot_sha256": "0b368b5ae8bea66ddc255ce0afd63e67583a0a5d7d24fbd457ecb016780fe82e"
+            }
+          },
+          {
+            "m": 0,
+            "i": 1,
+            "check_type": "text_present",
+            "verdict": "pass",
+            "injection": false,
+            "measured_value": null,
+            "summary": "verifier-b: pass",
+            "artifacts": {
+              "details_sha256": "f33820622ad4a072a1fb83476a629ac1037a9da00deda0ceb93e908af9e6e7e5",
+              "screenshot_sha256": "82e60066a2de261b6653bcdda90d1cb9a7af2f474cecd82e8d371e8384d72315"
+            }
+          },
+          {
+            "m": 1,
+            "i": 0,
+            "check_type": "client_approval",
+            "verdict": "needs_client",
+            "injection": false,
+            "measured_value": null,
+            "summary": "verifier-b: needs_client",
+            "artifacts": {
+              "details_sha256": "a784bbb2e3a8d6385f5e2e25a12f8647fcf43c52cacc516277f8f1106a088574"
+            }
+          }
+        ],
+        "verifier-c": [
+          {
+            "m": 0,
+            "i": 0,
+            "check_type": "http_status",
+            "verdict": "pass",
+            "injection": false,
+            "measured_value": "200",
+            "summary": "verifier-c: pass",
+            "artifacts": {
+              "details_sha256": "84ccd2b8ab4efa4ab3f1df0d9850119b605c7249ab68750796c5a4453ab8a7f2",
+              "screenshot_sha256": "0b368b5ae8bea66ddc255ce0afd63e67583a0a5d7d24fbd457ecb016780fe82e"
+            }
+          },
+          {
+            "m": 0,
+            "i": 1,
+            "check_type": "text_present",
+            "verdict": "fail",
+            "injection": false,
+            "measured_value": null,
+            "summary": "verifier-c: fail",
+            "artifacts": {
+              "details_sha256": "f33820622ad4a072a1fb83476a629ac1037a9da00deda0ceb93e908af9e6e7e5",
+              "screenshot_sha256": "82e60066a2de261b6653bcdda90d1cb9a7af2f474cecd82e8d371e8384d72315"
+            }
+          },
+          {
+            "m": 1,
+            "i": 0,
+            "check_type": "client_approval",
+            "verdict": "needs_client",
+            "injection": false,
+            "measured_value": null,
+            "summary": "verifier-c: needs_client",
+            "artifacts": {
+              "details_sha256": "a784bbb2e3a8d6385f5e2e25a12f8647fcf43c52cacc516277f8f1106a088574"
+            }
+          }
+        ]
+      },
+      "artifacts": [
+        {
+          "sha256": "0b368b5ae8bea66ddc255ce0afd63e67583a0a5d7d24fbd457ecb016780fe82e",
+          "kind": "png",
+          "url": "https://kept.example/evidence/0b368b5ae8bea66ddc255ce0afd63e67583a0a5d7d24fbd457ecb016780fe82e.png"
+        },
+        {
+          "sha256": "82e60066a2de261b6653bcdda90d1cb9a7af2f474cecd82e8d371e8384d72315",
+          "kind": "png",
+          "url": "https://kept.example/evidence/82e60066a2de261b6653bcdda90d1cb9a7af2f474cecd82e8d371e8384d72315.png"
+        },
+        {
+          "sha256": "84ccd2b8ab4efa4ab3f1df0d9850119b605c7249ab68750796c5a4453ab8a7f2",
+          "kind": "json",
+          "url": "https://kept.example/evidence/84ccd2b8ab4efa4ab3f1df0d9850119b605c7249ab68750796c5a4453ab8a7f2.json"
+        },
+        {
+          "sha256": "a784bbb2e3a8d6385f5e2e25a12f8647fcf43c52cacc516277f8f1106a088574",
+          "kind": "json",
+          "url": "https://kept.example/evidence/a784bbb2e3a8d6385f5e2e25a12f8647fcf43c52cacc516277f8f1106a088574.json"
+        },
+        {
+          "sha256": "f33820622ad4a072a1fb83476a629ac1037a9da00deda0ceb93e908af9e6e7e5",
+          "kind": "json",
+          "url": "https://kept.example/evidence/f33820622ad4a072a1fb83476a629ac1037a9da00deda0ceb93e908af9e6e7e5.json"
+        }
+      ],
+      "client_decisions": [
+        {
+          "m": 1,
+          "i": 0,
+          "decision": "approve",
+          "actor": "party_client",
+          "note": null,
+          "decided_at": "2026-11-10T12:00:00.000Z"
+        }
+      ],
+      "milestones": [
+        {
+          "m": 0,
+          "title": "Page live",
+          "amount_cents": 3000,
+          "outcome": "passed",
+          "status": "released",
+          "paypal": {
+            "capture_id": "CAPTURE-1",
+            "release_id": "RELEASE-1",
+            "refund_id": null
+          }
+        },
+        {
+          "m": 1,
+          "title": "Design approved",
+          "amount_cents": 2000,
+          "outcome": "passed",
+          "status": "released",
+          "paypal": {
+            "capture_id": "CAPTURE-1",
+            "release_id": "RELEASE-2",
+            "refund_id": null
+          }
+        }
+      ],
+      "paypal": {
+        "order_id": "ORDER-1",
+        "contract_hash_field": "purchase_units[].custom_id"
+      },
+      "events": [
+        {
+          "type": "STATUS_CHANGED",
+          "actor": "kept",
+          "payload": {
+            "from": "VERIFIED",
+            "to": "SETTLED"
+          },
+          "at": "2026-11-10T12:00:00.000Z"
+        }
+      ],
+      "issued_at": "2026-11-10T12:00:00.000Z",
+      "seal": {
+        "v": "kept-qaps/1",
+        "type": "receipt_seal",
+        "issuer": "kept-issuer",
+        "public_key": "hztI4yRqfxd9KO-zvpeb_dwSXX8ZyBnWVStU2ILbO_M",
+        "key_fingerprint": "a750ac5a428e4e46fdcaa22cb7b25d92608030b2b9c0802da2011cf3bbe654ec",
+        "sections": {
+          "artifacts": "69f3882a5d30e13568e37b4bd5f17ef580c4dc93ac8a6f931ee7dc7c429979d1",
+          "certificate": "86f252b0f415fbf8aa830a30001a0b12a39bb7b71028e4846310c933a54b276d",
+          "certificate_hash": "02a23dbeca14b33d147eed95188c1fde585dfe850f0830873c477c75b8753ba8",
+          "client_decisions": "f4e3a48e05686433ca9d2c74258da023907afac1b8c23ae984bdfacc99ada3a0",
+          "contract": "6f36f8f1173ea8ad6c25aa439c58f7fd8f2c6a842923349b0834c6eec04278f9",
+          "contract_hash": "f6d3abbf0d8e8bf1e38f9c22f13e68f69cda9018e96e054432f6d99e57d31d25",
+          "events": "d2538956a0593d9fe536787c56d86bb309f2d619b3f037a9d034709efd6b00ca",
+          "issued_at": "6ff471eca1558e261dfd610b70565c9f17288506c8908fd954e0f058c22a7a29",
+          "job": "d44479736532377eb9f454967e700fe77e35dc59a0f89c9dc4965a4f1075e0cc",
+          "leaves": "a32b76e0656658b1f84da6cf0fef65119648311659177e60555bf2cafdd04cfc",
+          "milestones": "4a5bb2eec8e3ba751be8fdea28c6b5c7b739f1887fb6c3c5589008bc886da2cb",
+          "paypal": "3df95ddca6ff80acefaa731e64483652e6ef10fe459c80176d155c2070a659f8",
+          "type": "fe5d74d0c31439eeff1284b2adc8628b106fde61c9c49234796ea3956aeb5821",
+          "v": "4ee97e3f970995e5bd23900c7fd99e6ce8e0a616534d9b142c7ff271350ccc94"
+        },
+        "signature": "gozK6wuT8krdTj93YhX6OEBPDABjFQT6Ut2Cu6U2vPur2sXBBHXFwjJ7i4Xv3M6wp0El-CHVh4IvJkeaZLwNAw"
+      }
+    },
+    "expected": {
+      "ok": true,
+      "checks": [
+        {
+          "check": "format",
+          "ok": true,
+          "detail": "receipt has the kept-qaps/1 proof_receipt shape"
+        },
+        {
+          "check": "seal_sections",
+          "ok": true,
+          "detail": "every section matches the sealed hashes"
+        },
+        {
+          "check": "seal_signature",
+          "ok": true,
+          "detail": "sealed by kept-issuer, key a750ac5a428e4e46fdcaa22cb7b25d92608030b2b9c0802da2011cf3bbe654ec"
+        },
+        {
+          "check": "issuer_key",
+          "ok": true,
+          "detail": "issuer key matches the published Kept key"
+        },
+        {
+          "check": "contract_hash",
+          "ok": true,
+          "detail": "contract hashes to 6f36f8f1173ea8ad6c25aa439c58f7fd8f2c6a842923349b0834c6eec04278f9"
+        },
+        {
+          "check": "certificate",
+          "ok": true,
+          "detail": "signatures, Merkle roots and quorum verdicts all check out"
+        },
+        {
+          "check": "certificate_hash",
+          "ok": true,
+          "detail": "certificate hashes to 86f252b0f415fbf8aa830a30001a0b12a39bb7b71028e4846310c933a54b276d"
+        },
+        {
+          "check": "leaves",
+          "ok": true,
+          "detail": "leaves only from attesting verifiers"
+        },
+        {
+          "check": "artifacts",
+          "ok": true,
+          "detail": "5 artifacts, each addressed by its SHA-256"
+        },
+        {
+          "check": "client_decisions",
+          "ok": true,
+          "detail": "1 client decision(s), each on an item left to the client"
+        },
+        {
+          "check": "milestones",
+          "ok": true,
+          "detail": "every milestone outcome follows from the verdicts"
+        }
+      ]
+    }
+  },
+  "tampered_receipt": {
+    "change": "milestones[0].paypal.release_id changed from RELEASE-1 to RELEASE-X",
+    "receipt": {
+      "v": "kept-qaps/1",
+      "type": "proof_receipt",
+      "job": {
+        "id": "job_vectors01",
+        "title": "Acme site",
+        "status": "SETTLED",
+        "rail": "auth_capture",
+        "deliverable_url": "https://deliverable.example/site/"
+      },
+      "contract": {
+        "version": 1,
+        "currency": "USD",
+        "total_cents": 5000,
+        "milestones": [
+          {
+            "title": "Page live",
+            "amount_cents": 3000,
+            "items": [
+              {
+                "description": "Loads",
+                "check_type": "http_status",
+                "params": {
+                  "path": "/",
+                  "expected": 200
+                }
+              },
+              {
+                "description": "Shows the name",
+                "check_type": "text_present",
+                "params": {
+                  "path": "/",
+                  "text": "Acme"
+                }
+              }
+            ]
+          },
+          {
+            "title": "Design approved",
+            "amount_cents": 2000,
+            "items": [
+              {
+                "description": "Client likes it",
+                "check_type": "client_approval",
+                "params": {}
+              }
+            ]
+          }
+        ],
+        "quorum": {
+          "n": 3,
+          "k": 2,
+          "verifiers": [
+            {
+              "id": "verifier-a",
+              "public_key": "sHZ7pt_RUS1R0lqC79oHejGRMvWOBxRoHLCjIdgtj1M"
+            },
+            {
+              "id": "verifier-b",
+              "public_key": "z3IR154aB0m9ykYoRIB4dAu7LqI5U2VmBWebriLelxQ"
+            },
+            {
+              "id": "verifier-c",
+              "public_key": "MpceojtvorAnED9NNIAxU_CeK7BEbPH36aZ__G9yVRM"
+            }
+          ]
+        }
+      },
+      "contract_hash": "6f36f8f1173ea8ad6c25aa439c58f7fd8f2c6a842923349b0834c6eec04278f9",
+      "certificate": {
+        "v": "kept-qaps/1",
+        "type": "quorum_certificate",
+        "job_id": "job_vectors01",
+        "contract_hash": "6f36f8f1173ea8ad6c25aa439c58f7fd8f2c6a842923349b0834c6eec04278f9",
+        "deliverable_url": "https://deliverable.example/site/",
+        "k": 2,
+        "n": 3,
+        "attestations": [
+          {
+            "payload": {
+              "v": "kept-qaps/1",
+              "type": "attestation",
+              "job_id": "job_vectors01",
+              "contract_hash": "6f36f8f1173ea8ad6c25aa439c58f7fd8f2c6a842923349b0834c6eec04278f9",
+              "deliverable_url": "https://deliverable.example/site/",
+              "verifier_id": "verifier-a",
+              "browser": "local-chromium 140.0",
+              "judge_model": "claude-opus-5-5",
+              "merkle_root": "4aaca3359c97775b5c8dd11a2ead4c62c3bef510622be29e37714f22bc6d89b2",
+              "leaf_count": 3,
+              "issued_at": "2026-11-10T12:00:00.000Z"
+            },
+            "signature": "8RRi3Y7F8jSMg6s0Ob6u_T-ab3KSxj11KL6-oWtVzQY8VqH_4L9OhbTLtzzXuBuDlJjCyoDiKwMBFg8MU9KbDg",
+            "key_fingerprint": "f69c562d8d53e05aa94e6fa71e01af1a96dd7dac8d84b424cb68faf2b24efe67"
+          },
+          {
+            "payload": {
+              "v": "kept-qaps/1",
+              "type": "attestation",
+              "job_id": "job_vectors01",
+              "contract_hash": "6f36f8f1173ea8ad6c25aa439c58f7fd8f2c6a842923349b0834c6eec04278f9",
+              "deliverable_url": "https://deliverable.example/site/",
+              "verifier_id": "verifier-b",
+              "browser": "local-chromium 140.0",
+              "judge_model": "claude-opus-5-5",
+              "merkle_root": "6f75dceb3bd165ba27d4af78b6a780c50a6d224abf981c4baad22070304becea",
+              "leaf_count": 3,
+              "issued_at": "2026-11-10T12:00:00.000Z"
+            },
+            "signature": "0mwh-vRvCHy_IxdOFH1N5wIHfDZQbcweanPF9T1brWFVKt6VsPa0bLrtrbbNoIZr5CaZyJIweEos8HSTQIqtDQ",
+            "key_fingerprint": "7c487480a6b57a67e0a5f5ad87a6cad7326f9252f17d51313427995b6efa1091"
+          },
+          {
+            "payload": {
+              "v": "kept-qaps/1",
+              "type": "attestation",
+              "job_id": "job_vectors01",
+              "contract_hash": "6f36f8f1173ea8ad6c25aa439c58f7fd8f2c6a842923349b0834c6eec04278f9",
+              "deliverable_url": "https://deliverable.example/site/",
+              "verifier_id": "verifier-c",
+              "browser": "local-chromium 140.0",
+              "judge_model": "claude-opus-5-5",
+              "merkle_root": "61588ab57e0e7aa854f108f1a0e1c03416230dfad2d3a1306a0cc548ecd1a37e",
+              "leaf_count": 3,
+              "issued_at": "2026-11-10T12:00:00.000Z"
+            },
+            "signature": "zvS-BCBmXx4hWlQZh239eXlEjWOJJsZFh85RfT3E2q4nUm7aWwR20exey6wHnc9JXiLvwadDVcN5039XRcnjDA",
+            "key_fingerprint": "47ef508e61377fb3a190b787874dfe823e40ef24e7f27fc60edd35157a2c8f76"
+          }
+        ],
+        "items": [
+          {
+            "m": 0,
+            "i": 0,
+            "verdict": "pass",
+            "reason": "quorum"
+          },
+          {
+            "m": 0,
+            "i": 1,
+            "verdict": "pass",
+            "reason": "quorum"
+          },
+          {
+            "m": 1,
+            "i": 0,
+            "verdict": "needs_client",
+            "reason": "client"
+          }
+        ],
+        "issued_at": "2026-11-10T12:00:00.000Z"
+      },
+      "certificate_hash": "86f252b0f415fbf8aa830a30001a0b12a39bb7b71028e4846310c933a54b276d",
+      "leaves": {
+        "verifier-a": [
+          {
+            "m": 0,
+            "i": 0,
+            "check_type": "http_status",
+            "verdict": "pass",
+            "injection": false,
+            "measured_value": "200",
+            "summary": "verifier-a: pass",
+            "artifacts": {
+              "details_sha256": "84ccd2b8ab4efa4ab3f1df0d9850119b605c7249ab68750796c5a4453ab8a7f2",
+              "screenshot_sha256": "0b368b5ae8bea66ddc255ce0afd63e67583a0a5d7d24fbd457ecb016780fe82e"
+            }
+          },
+          {
+            "m": 0,
+            "i": 1,
+            "check_type": "text_present",
+            "verdict": "pass",
+            "injection": false,
+            "measured_value": null,
+            "summary": "verifier-a: pass",
+            "artifacts": {
+              "details_sha256": "f33820622ad4a072a1fb83476a629ac1037a9da00deda0ceb93e908af9e6e7e5",
+              "screenshot_sha256": "82e60066a2de261b6653bcdda90d1cb9a7af2f474cecd82e8d371e8384d72315"
+            }
+          },
+          {
+            "m": 1,
+            "i": 0,
+            "check_type": "client_approval",
+            "verdict": "needs_client",
+            "injection": false,
+            "measured_value": null,
+            "summary": "verifier-a: needs_client",
+            "artifacts": {
+              "details_sha256": "a784bbb2e3a8d6385f5e2e25a12f8647fcf43c52cacc516277f8f1106a088574"
+            }
+          }
+        ],
+        "verifier-b": [
+          {
+            "m": 0,
+            "i": 0,
+            "check_type": "http_status",
+            "verdict": "pass",
+            "injection": false,
+            "measured_value": "200",
+            "summary": "verifier-b: pass",
+            "artifacts": {
+              "details_sha256": "84ccd2b8ab4efa4ab3f1df0d9850119b605c7249ab68750796c5a4453ab8a7f2",
+              "screenshot_sha256": "0b368b5ae8bea66ddc255ce0afd63e67583a0a5d7d24fbd457ecb016780fe82e"
+            }
+          },
+          {
+            "m": 0,
+            "i": 1,
+            "check_type": "text_present",
+            "verdict": "pass",
+            "injection": false,
+            "measured_value": null,
+            "summary": "verifier-b: pass",
+            "artifacts": {
+              "details_sha256": "f33820622ad4a072a1fb83476a629ac1037a9da00deda0ceb93e908af9e6e7e5",
+              "screenshot_sha256": "82e60066a2de261b6653bcdda90d1cb9a7af2f474cecd82e8d371e8384d72315"
+            }
+          },
+          {
+            "m": 1,
+            "i": 0,
+            "check_type": "client_approval",
+            "verdict": "needs_client",
+            "injection": false,
+            "measured_value": null,
+            "summary": "verifier-b: needs_client",
+            "artifacts": {
+              "details_sha256": "a784bbb2e3a8d6385f5e2e25a12f8647fcf43c52cacc516277f8f1106a088574"
+            }
+          }
+        ],
+        "verifier-c": [
+          {
+            "m": 0,
+            "i": 0,
+            "check_type": "http_status",
+            "verdict": "pass",
+            "injection": false,
+            "measured_value": "200",
+            "summary": "verifier-c: pass",
+            "artifacts": {
+              "details_sha256": "84ccd2b8ab4efa4ab3f1df0d9850119b605c7249ab68750796c5a4453ab8a7f2",
+              "screenshot_sha256": "0b368b5ae8bea66ddc255ce0afd63e67583a0a5d7d24fbd457ecb016780fe82e"
+            }
+          },
+          {
+            "m": 0,
+            "i": 1,
+            "check_type": "text_present",
+            "verdict": "fail",
+            "injection": false,
+            "measured_value": null,
+            "summary": "verifier-c: fail",
+            "artifacts": {
+              "details_sha256": "f33820622ad4a072a1fb83476a629ac1037a9da00deda0ceb93e908af9e6e7e5",
+              "screenshot_sha256": "82e60066a2de261b6653bcdda90d1cb9a7af2f474cecd82e8d371e8384d72315"
+            }
+          },
+          {
+            "m": 1,
+            "i": 0,
+            "check_type": "client_approval",
+            "verdict": "needs_client",
+            "injection": false,
+            "measured_value": null,
+            "summary": "verifier-c: needs_client",
+            "artifacts": {
+              "details_sha256": "a784bbb2e3a8d6385f5e2e25a12f8647fcf43c52cacc516277f8f1106a088574"
+            }
+          }
+        ]
+      },
+      "artifacts": [
+        {
+          "sha256": "0b368b5ae8bea66ddc255ce0afd63e67583a0a5d7d24fbd457ecb016780fe82e",
+          "kind": "png",
+          "url": "https://kept.example/evidence/0b368b5ae8bea66ddc255ce0afd63e67583a0a5d7d24fbd457ecb016780fe82e.png"
+        },
+        {
+          "sha256": "82e60066a2de261b6653bcdda90d1cb9a7af2f474cecd82e8d371e8384d72315",
+          "kind": "png",
+          "url": "https://kept.example/evidence/82e60066a2de261b6653bcdda90d1cb9a7af2f474cecd82e8d371e8384d72315.png"
+        },
+        {
+          "sha256": "84ccd2b8ab4efa4ab3f1df0d9850119b605c7249ab68750796c5a4453ab8a7f2",
+          "kind": "json",
+          "url": "https://kept.example/evidence/84ccd2b8ab4efa4ab3f1df0d9850119b605c7249ab68750796c5a4453ab8a7f2.json"
+        },
+        {
+          "sha256": "a784bbb2e3a8d6385f5e2e25a12f8647fcf43c52cacc516277f8f1106a088574",
+          "kind": "json",
+          "url": "https://kept.example/evidence/a784bbb2e3a8d6385f5e2e25a12f8647fcf43c52cacc516277f8f1106a088574.json"
+        },
+        {
+          "sha256": "f33820622ad4a072a1fb83476a629ac1037a9da00deda0ceb93e908af9e6e7e5",
+          "kind": "json",
+          "url": "https://kept.example/evidence/f33820622ad4a072a1fb83476a629ac1037a9da00deda0ceb93e908af9e6e7e5.json"
+        }
+      ],
+      "client_decisions": [
+        {
+          "m": 1,
+          "i": 0,
+          "decision": "approve",
+          "actor": "party_client",
+          "note": null,
+          "decided_at": "2026-11-10T12:00:00.000Z"
+        }
+      ],
+      "milestones": [
+        {
+          "m": 0,
+          "title": "Page live",
+          "amount_cents": 3000,
+          "outcome": "passed",
+          "status": "released",
+          "paypal": {
+            "capture_id": "CAPTURE-1",
+            "release_id": "RELEASE-X",
+            "refund_id": null
+          }
+        },
+        {
+          "m": 1,
+          "title": "Design approved",
+          "amount_cents": 2000,
+          "outcome": "passed",
+          "status": "released",
+          "paypal": {
+            "capture_id": "CAPTURE-1",
+            "release_id": "RELEASE-2",
+            "refund_id": null
+          }
+        }
+      ],
+      "paypal": {
+        "order_id": "ORDER-1",
+        "contract_hash_field": "purchase_units[].custom_id"
+      },
+      "events": [
+        {
+          "type": "STATUS_CHANGED",
+          "actor": "kept",
+          "payload": {
+            "from": "VERIFIED",
+            "to": "SETTLED"
+          },
+          "at": "2026-11-10T12:00:00.000Z"
+        }
+      ],
+      "issued_at": "2026-11-10T12:00:00.000Z",
+      "seal": {
+        "v": "kept-qaps/1",
+        "type": "receipt_seal",
+        "issuer": "kept-issuer",
+        "public_key": "hztI4yRqfxd9KO-zvpeb_dwSXX8ZyBnWVStU2ILbO_M",
+        "key_fingerprint": "a750ac5a428e4e46fdcaa22cb7b25d92608030b2b9c0802da2011cf3bbe654ec",
+        "sections": {
+          "artifacts": "69f3882a5d30e13568e37b4bd5f17ef580c4dc93ac8a6f931ee7dc7c429979d1",
+          "certificate": "86f252b0f415fbf8aa830a30001a0b12a39bb7b71028e4846310c933a54b276d",
+          "certificate_hash": "02a23dbeca14b33d147eed95188c1fde585dfe850f0830873c477c75b8753ba8",
+          "client_decisions": "f4e3a48e05686433ca9d2c74258da023907afac1b8c23ae984bdfacc99ada3a0",
+          "contract": "6f36f8f1173ea8ad6c25aa439c58f7fd8f2c6a842923349b0834c6eec04278f9",
+          "contract_hash": "f6d3abbf0d8e8bf1e38f9c22f13e68f69cda9018e96e054432f6d99e57d31d25",
+          "events": "d2538956a0593d9fe536787c56d86bb309f2d619b3f037a9d034709efd6b00ca",
+          "issued_at": "6ff471eca1558e261dfd610b70565c9f17288506c8908fd954e0f058c22a7a29",
+          "job": "d44479736532377eb9f454967e700fe77e35dc59a0f89c9dc4965a4f1075e0cc",
+          "leaves": "a32b76e0656658b1f84da6cf0fef65119648311659177e60555bf2cafdd04cfc",
+          "milestones": "4a5bb2eec8e3ba751be8fdea28c6b5c7b739f1887fb6c3c5589008bc886da2cb",
+          "paypal": "3df95ddca6ff80acefaa731e64483652e6ef10fe459c80176d155c2070a659f8",
+          "type": "fe5d74d0c31439eeff1284b2adc8628b106fde61c9c49234796ea3956aeb5821",
+          "v": "4ee97e3f970995e5bd23900c7fd99e6ce8e0a616534d9b142c7ff271350ccc94"
+        },
+        "signature": "gozK6wuT8krdTj93YhX6OEBPDABjFQT6Ut2Cu6U2vPur2sXBBHXFwjJ7i4Xv3M6wp0El-CHVh4IvJkeaZLwNAw"
+      }
+    },
+    "expected": {
+      "ok": false,
+      "checks": [
+        {
+          "check": "format",
+          "ok": true,
+          "detail": "receipt has the kept-qaps/1 proof_receipt shape"
+        },
+        {
+          "check": "seal_sections",
+          "ok": false,
+          "detail": "changed since sealing: milestones"
+        },
+        {
+          "check": "seal_signature",
+          "ok": true,
+          "detail": "sealed by kept-issuer, key a750ac5a428e4e46fdcaa22cb7b25d92608030b2b9c0802da2011cf3bbe654ec"
+        },
+        {
+          "check": "issuer_key",
+          "ok": true,
+          "detail": "issuer key matches the published Kept key"
+        },
+        {
+          "check": "contract_hash",
+          "ok": true,
+          "detail": "contract hashes to 6f36f8f1173ea8ad6c25aa439c58f7fd8f2c6a842923349b0834c6eec04278f9"
+        },
+        {
+          "check": "certificate",
+          "ok": true,
+          "detail": "signatures, Merkle roots and quorum verdicts all check out"
+        },
+        {
+          "check": "certificate_hash",
+          "ok": true,
+          "detail": "certificate hashes to 86f252b0f415fbf8aa830a30001a0b12a39bb7b71028e4846310c933a54b276d"
+        },
+        {
+          "check": "leaves",
+          "ok": true,
+          "detail": "leaves only from attesting verifiers"
+        },
+        {
+          "check": "artifacts",
+          "ok": true,
+          "detail": "5 artifacts, each addressed by its SHA-256"
+        },
+        {
+          "check": "client_decisions",
+          "ok": true,
+          "detail": "1 client decision(s), each on an item left to the client"
+        },
+        {
+          "check": "milestones",
+          "ok": true,
+          "detail": "every milestone outcome follows from the verdicts"
+        }
+      ]
+    }
+  }
+}
