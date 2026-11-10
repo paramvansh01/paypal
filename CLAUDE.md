@@ -12,10 +12,10 @@
 
 ```
 Phase:              PQ — QAPS core (the verifier quorum works end to end locally; PayPal spikes still blocked on H2–H3)
-Next action:        TQ.7 — Proof Receipt per 6.12 (assembly, `GET /jobs/:id/receipt`, MCP `get_receipt`, download button).
-Suggested order:    TQ.7 → TQ.8 → T2.6 → TQ.10 → T3.9 → T4.1 → T4.4 → T5.1 (all need no keys). With H2–H3 done, jump to T1.1 proof + P1 spikes. With H4, T3.1/T3.2/T3.6/TQ.5.
+Next action:        TQ.8 — receipt verifiers: `npm run verify-receipt <file|url>` and zero-dependency `tools/verify-receipt.mjs`, built on `verifyReceipt` in src/qaps/receipt.ts, plus artifact fetching and a tamper test over every field.
+Suggested order:    TQ.8 → T2.6 → TQ.10 → T3.9 → T4.1 → T4.4 → T5.1 (all need no keys). With H2–H3 done, jump to T1.1 proof + P1 spikes. With H4, T3.1/T3.2/T3.6/TQ.5.
 Active session:     Aashman — 2026-11-10T13:38Z
-Last updated:       2026-11-10 (Aashman: T3.8 done; WebKit loopback SSRF fixed)
+Last updated:       2026-11-10 (Aashman: T3.8, TQ.7 done)
 Payment rail:       UNDECIDED (decided by the spike in P1)
 Blockers:           H2–H3 (PayPal sandbox) block T1.1 proof and all of P1, T2.3, T2.4, TQ.9 binding. H4 (Anthropic + KERNEL keys) blocks T3.1/T3.2/T3.6/TQ.5 live runs and the KERNEL browser path.
 Hosted demo URL:    —
@@ -514,7 +514,7 @@ Goal: learn in a few hours which rail works in our sandbox. Scripts live in `scr
 - [x] **T3.7** Single-verifier runner: runs every item for one verifier (one browser, one judge), applies timeouts, runs the tripwire scanner on each page, and returns leaf records + artifacts. The quorum orchestrator (TQ.6) calls it n times.
 - [x] **T3.8** Demo deliverables in `demo/sites/`: `good/` passes everything; `flawed/` has a contact form that does not submit, so exactly one milestone fails; `sneaky/` has the same broken form plus hidden text telling the AI the form works, so the tripwire must fire. All served by the app.
   *Done when:* the full quorum gives 4 of 4 on `good`, 3 of 4 on `flawed`, and 3 of 4 with `INJECTION_DETECTED` on `sneaky`, ten runs in a row.
-- [ ] **T3.9** Evidence report page: checklist, contract hash, per-verifier verdicts side by side, quorum result, evidence, PayPal IDs, timeline. JSON export is the Proof Receipt (TQ.7).
+- [ ] **T3.9** Evidence report page: checklist, contract hash, per-verifier verdicts side by side, quorum result, evidence, PayPal IDs, timeline. JSON export is the Proof Receipt (TQ.7): the download button links to `/jobs/:id/receipt?download=1`.
 
 ### PQ — QAPS: the novel core (MUST)
 
@@ -526,7 +526,7 @@ The pure parts (TQ.1–TQ.3) need no keys or network and come first. Every task 
 - [x] **TQ.4** Tripwire DOM scanner per 6.10, with tests on hand-written hostile pages (each hiding technique) and a benign corpus (measure and record the false-positive rate).
 - [ ] **TQ.5** Canary integrity for `llm_judgement` per 6.10 (with T3.6). Tests use recorded responses, including a hijacked one.
 - [x] **TQ.6** Quorum orchestrator: runs the n verifiers in parallel (different browsers and judges), stores leaves, roots, attestations, builds and stores the certificate, writes final verdicts, moves the job to `VERIFIED` (or keeps items `needs_client`). Live verdicts stream to the UI.
-- [ ] **TQ.7** Proof Receipt per 6.12: assembly, `GET /jobs/:id/receipt`, MCP `get_receipt`, download button.
+- [x] **TQ.7** Proof Receipt per 6.12: assembly, `GET /jobs/:id/receipt`, MCP `get_receipt`, download button. (Assembly, `verifyReceipt`, `getReceipt()` and the route with `?download=1` are done; the MCP tool is wired in T4.1 and the button in T3.9, both calling the same code.)
 - [ ] **TQ.8** Receipt verifiers: `npm run verify-receipt` and zero-dependency `tools/verify-receipt.mjs`. Tamper tests: flipping any single byte of a sample receipt fails with a message naming what broke.
   *Done when:* a tamper test over every field of a real receipt passes, and the standalone script runs with plain `node` in an empty folder.
 - [~] **TQ.9** (Param — validate-before-settle done in T2.5; PayPal field binding waits for the rail spike) Settlement verifies, not trusts: `settle` validates the certificate from scratch before any PayPal call, and binds the certificate hash to the PayPal capture/refund (VERIFY fields).
@@ -536,7 +536,7 @@ The pure parts (TQ.1–TQ.3) need no keys or network and come first. Every task 
 
 ### P4 — MCP server and demo agents (MUST)
 
-- [ ] **T4.1** MCP server with the tools in 6.8 over Streamable HTTP at `/mcp` with bearer-token auth, plus a stdio entry point. Clear tool descriptions and input schemas, since agents read them.
+- [ ] **T4.1** MCP server with the tools in 6.8 over Streamable HTTP at `/mcp` with bearer-token auth, plus a stdio entry point. Clear tool descriptions and input schemas, since agents read them. `get_receipt` calls `getReceipt()` from src/core/receipt-store.ts.
 - [ ] **T4.2** Test with the MCP Inspector and with one real client (Claude Code or Claude Desktop). Put the exact connection steps in the README.
 - [ ] **T4.3** Buyer agent (`agents/buyer.ts`): given a goal and a budget, it posts the job, accepts the checklist, requests the lock, waits, then calls verify and settle.
 - [ ] **T4.4** Worker agent (`agents/worker.ts`): accepts a job and submits a deliverable. In demo mode it submits `good` or `flawed` by flag, so the run is repeatable.
@@ -642,6 +642,7 @@ Format: `YYYY-MM-DD — <name> — decision — reason`
 - 2026-11-10 — Param — Config enforces 2k > n for the quorum (default 2-of-3), so two conflicting quorums can never both form. Verifier keys are Ed25519 JWKs in `data/keys/<id>.jwk.json` (mode 0600, created on first boot) or `VERIFIER_KEYS_JSON`; the loader re-derives the public key instead of trusting the stored one. Attestations are signed over canonical JSON and carry the key fingerprint; `leaf_count` is signed because an RFC 6962 root alone does not pin the tree size.
 - 2026-11-10 — Aashman — Local WebKit fetches every request on the Node side (`route.fetch()` through the egress proxy) and the browser gets only the final response. Reason: on macOS 26, WebKit connects to loopback directly and ignores the proxy, and routes never see redirect hops, so a deliverable could redirect the WebKit verifier into 127.0.0.1 (reproduced, including via HTTPS where the proxy cannot read the 302). Each hop is now its own checked CONNECT tunnel. Cost: after a path-changing redirect, directory-relative links resolve against the original URL (root-relative and absolute links are fine). Playwright cannot fulfill a route with a 3xx, so hop-by-hop handoff to the browser is not possible. Chromium is unchanged.
 - 2026-11-10 — Aashman — Egress proxy also checks plain-HTTP redirect `Location`s (403 block page if refused), and a CONNECT tunnel to host:port is allowed when either the http or https origin is allowed (Playwright's fetcher tunnels plain http). Verifier keys load from `d` alone (PKCS#8) so the stored-`x` check behaves the same on Node 26, which rejects a mismatch inside `createPrivateKey`.
+- 2026-11-10 — Aashman — Proof Receipt format (`src/qaps/receipt.ts`, `kept-qaps/1`, type `proof_receipt`): job {id, title, status, rail, deliverable_url}, contract + contract_hash, certificate + certificate_hash, leaves of the attesting verifiers only (a non-attesting verifier's leaves cannot be checked, so they are rejected), artifact index {sha256, kind, url} (kind from the leaf's artifact name: `screenshot*` → png, else json), client decisions, milestones {m, title, amount_cents, outcome, status, paypal ids}, `paypal.order_id`, events, issued_at. The receipt is not signed: trust comes from the contract hash on the PayPal order and the verifier signatures inside. `verifyReceipt` (pure, never throws) returns named checks: format, contract_hash, certificate, certificate_hash, leaves, artifacts, client_decisions, milestones. It also rejects a milestone marked released/refunded against its outcome. Fetching artifacts and comparing with PayPal's `custom_id` are online steps for TQ.8. The server now opens the database (`createApp(config, { db, … })`).
 
 ---
 
@@ -685,3 +686,10 @@ In flight: nothing
 Learned:   (1) This Mac: Node 26.11, macOS 26.6, Playwright 1.65 / WebKit 27.2. (2) WebKit on macOS 26 skips the launch proxy for loopback; never rely on the proxy alone for WebKit. (3) Playwright's tunneled fetch sends SNI `localhost` for a 127.0.0.1 target, so local TLS test certs need `DNS:localhost`. (4) The exhaustive n=5 quorum test can exceed 5 s under load; it has a 60 s timeout now.
 Next:      TQ.7
 Blockers:  H2–H3 (PayPal), H4 (Anthropic + KERNEL keys). No `.env` on Aashman's Mac yet (H5).
+
+### 2026-11-10 20:30 IST — Aashman
+Done:      TQ.7 — receipt assembly and offline verification (`src/qaps/receipt.ts`), `getReceipt()` (`src/core/receipt-store.ts`), `GET /jobs/:id/receipt` (404 unknown job, 409 before verification, `?download=1` → attachment). 25 new tests: 17 tamper cases each named by the failing check, and an end-to-end run (real browsers on the flawed site, settle on the mock rail, receipt over HTTP, every artifact re-hashed). 549 tests green.
+In flight: nothing
+Learned:   Status moves are `STATUS_CHANGED` events with `{from, to}` in the payload, not one event type per status. Express writes `attachment; filename=…` without quotes when the name needs none.
+Next:      TQ.8
+Blockers:  H2–H3 (PayPal), H4 (Anthropic + KERNEL keys), H5 (`.env` on Aashman's Mac).

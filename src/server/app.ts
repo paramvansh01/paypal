@@ -1,6 +1,9 @@
 import { fileURLToPath } from "node:url";
 import express, { type Express } from "express";
 import type { Config } from "../config.js";
+import { getReceipt, ReceiptUnavailableError } from "../core/receipt-store.js";
+import { JobNotFoundError } from "../core/state.js";
+import type { Db } from "../db/client.js";
 import { publicKeyring, type Keyring } from "../qaps/keys.js";
 import type { EvidenceStore } from "../verifier/evidence-store.js";
 
@@ -26,6 +29,7 @@ const PLACEHOLDER_PAGE = `<!doctype html>
 export const DEMO_SITES_DIR = fileURLToPath(new URL("../../demo/sites/", import.meta.url));
 
 export interface AppDeps {
+  db?: Db;
   keyring?: Keyring;
   evidence?: EvidenceStore;
 }
@@ -57,6 +61,27 @@ export function createApp(config: Config, deps: AppDeps = {}): Express {
       return;
     }
     res.set("Cache-Control", "public, max-age=31536000, immutable").type(m![2]!).send(data);
+  });
+
+  // Proof Receipt (section 6.12): everything needed to check a payout offline.
+  // `?download=1` makes browsers save it as a file (the receipt page's download button links here).
+  app.get("/jobs/:id/receipt", (req, res) => {
+    if (!deps.db) {
+      res.status(503).json({ error: "database not available" });
+      return;
+    }
+    try {
+      const receipt = getReceipt(deps.db, req.params.id, { publicBaseUrl: config.app.publicBaseUrl });
+      if (req.query.download !== undefined) {
+        const safeId = req.params.id.replace(/[^A-Za-z0-9_-]/g, "_");
+        res.attachment(`kept-receipt-${safeId}.json`);
+      }
+      res.set("Cache-Control", "no-store").json(receipt);
+    } catch (err) {
+      if (err instanceof JobNotFoundError) res.status(404).json({ error: err.message });
+      else if (err instanceof ReceiptUnavailableError) res.status(409).json({ error: err.message });
+      else throw err;
+    }
   });
 
   // Demo deliverables (good / flawed / sneaky) and the tiny API their contact form posts to.
