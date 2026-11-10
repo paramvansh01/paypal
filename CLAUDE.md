@@ -17,9 +17,9 @@ Suggested order:    T3.8 → TQ.7 → TQ.8 → T2.6 → TQ.10 → T3.9 → T4.1 
 Active session:     none
 Last updated:       2026-11-10 (handoff after T3.5, T3.7, TQ.6)
 Payment rail:       UNDECIDED (decided by the spike in P1)
-Blockers:           H1 — no GitHub remote: the repo exists only in ~/kept on Param's Mac (a clone-able copy is at ~/Downloads/kept.bundle, see H1). H2–H3 (PayPal sandbox) block T1.1 proof and all of P1, T2.3, T2.4, TQ.9 binding. H4 (Anthropic + KERNEL keys) blocks T3.1/T3.2/T3.6/TQ.5 live runs and the KERNEL browser path.
+Blockers:           H2–H3 (PayPal sandbox) block T1.1 proof and all of P1, T2.3, T2.4, TQ.9 binding. H4 (Anthropic + KERNEL keys) blocks T3.1/T3.2/T3.6/TQ.5 live runs and the KERNEL browser path.
 Hosted demo URL:    —
-Repo URL:           — (fill in after H1, then `git remote add origin <url> && git push -u origin main`)
+Repo URL:           https://github.com/paramvansh01/paypal (public, branch main)
 Submission deadline: — (FILL IN: date, time, timezone)
 Team:               Aashman, Param + (FILL IN teammates)
 ```
@@ -85,7 +85,7 @@ Sessions can end without warning (usage limits, closed laptop). So state is save
 
 Run this every time a session begins, before any other work:
 
-1. `git pull --rebase origin main`. If `git remote -v` prints nothing, the repo has not been pushed yet (H1): skip the pull, and remind the human that H1 is still open.
+1. `git pull --rebase origin main` (repo: https://github.com/paramvansh01/paypal). On a new machine, `git clone https://github.com/paramvansh01/paypal.git kept && cd kept` first.
 2. Read section 0 (Live State) and the last three entries of section 12 (Session Log).
 3. Run `git status` and `git log --oneline -8`. If there are uncommitted changes or a `WIP` commit, read the diff and the WIP note first. Finish or cleanly revert that work before starting anything new.
 4. Check the lock. If "Active session" names someone else:
@@ -173,9 +173,7 @@ Judging criteria (FILL IN from the official rules, so every decision can be weig
 
 Claude must not create accounts or type credentials into websites. At session start, remind the human about any unchecked item that blocks the current phase.
 
-- [ ] **H1** Create a public GitHub repo named `kept`. Add all teammates as collaborators. Put the repo URL in Live State.
-  The code so far lives in `~/kept` on Param's Mac. To publish it: `cd ~/kept && git remote add origin <url> && git push -u origin main`.
-  Until then a teammate can get a full copy (all history) from the bundle file `kept.bundle` (Param shares it privately): `git clone kept.bundle kept && cd kept && git remote remove origin`.
+- [x] **H1** Public GitHub repo: https://github.com/paramvansh01/paypal (created by Param; it is named `paypal`, not `kept`). Still to do: add every teammate as a collaborator so they can push.
 - [ ] **H2** Create a PayPal Developer account. In the sandbox dashboard create a REST app of the **Platform / Marketplace** type (needed for multiparty features). Copy the client ID and secret.
 - [ ] **H3** Create sandbox accounts: one **personal** (the client/buyer), two **business** (workers/sellers). Note emails and passwords in the team's private notes.
 - [ ] **H4** Get an LLM API key (default: Anthropic) and a KERNEL API key (kernel.sh dashboard).
@@ -640,6 +638,7 @@ Format: `YYYY-MM-DD — <name> — decision — reason`
 - 2026-11-10 — Param — Evidence is content-addressed: files are saved as `<EVIDENCE_DIR>/<sha256>.png|json` and served at `/evidence/<sha256>.<ext>`; leaves carry `screenshot_sha256` and `details_sha256` (details = check details + tripwire findings + blocked requests). The `evidence` table stores each leaf verbatim (JSON) so settlement rebuilds byte-identical leaves. KERNEL replay URLs are stored on `verifier_runs` and are NOT signed (they are hosted by KERNEL and may change).
 - 2026-11-10 — Param — Any code run inside a page with `page.evaluate` must not contain nested named functions written in TypeScript: under tsx, esbuild injects `__name(...)`, which is undefined in the page. The tripwire collector therefore lives in `src/verifier/tripwire.page.js` and is sent as text. If a page cannot be scanned, the verifier abstains on that item (`error`) instead of ignoring it.
 - 2026-11-10 — Param — Form checks wait at most 10 s for the success signal. Verification runs are numbered by `round`; if fewer than k verifiers finish, the job returns to DELIVERED and a later round can succeed. `recoverInterruptedVerifications()` must be called on server start (wire it in T2.6).
+- 2026-11-10 — Param — Repo published at https://github.com/paramvansh01/paypal (named `paypal`; the project and folder are still called Kept). History pushed as-is.
 - 2026-11-10 — Param — Config enforces 2k > n for the quorum (default 2-of-3), so two conflicting quorums can never both form. Verifier keys are Ed25519 JWKs in `data/keys/<id>.jwk.json` (mode 0600, created on first boot) or `VERIFIER_KEYS_JSON`; the loader re-derives the public key instead of trusting the stored one. Attestations are signed over canonical JSON and carry the key fingerprint; `leaf_count` is signed because an RFC 6962 root alone does not pin the tree size.
 
 ---
@@ -676,4 +675,4 @@ Done:      Pivot to Proof-Carrying Payments / QAPS (sections 1, 6.9–6.12, phas
 In flight: T3.8 — only the 10-runs-per-site acceptance is left: `npm run demo:verify -- --runs 10`.
 Learned:   (1) Playwright routes miss redirect hops in Chromium, hence the egress proxy. (2) tsx/esbuild injects `__name` into functions passed to page.evaluate; keep in-page code in *.page.js files. (3) drizzle-kit asks interactive rename questions when a migration both drops and adds columns: generate a drop-only migration first, then an add-only one. (4) Gate commits on `npm run check`'s exit code, not on grep output. (5) Exhaustive quorum tests found that an injection veto could be bypassed by dropping a report, so injection flags are fail votes. (6) Demo: `npm run demo:verify` needs no keys; good=4/4, flawed=3/4, sneaky=3/4 with INJECTION_DETECTED.
 Next:      T3.8 acceptance, then TQ.7 (see "Suggested order" in Live State).
-Blockers:  H1 (no remote), H2–H3 (PayPal), H4 (Anthropic + KERNEL keys)
+Blockers:  H2–H3 (PayPal), H4 (Anthropic + KERNEL keys). (H1 done afterwards: pushed to https://github.com/paramvansh01/paypal.)
