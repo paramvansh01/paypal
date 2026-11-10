@@ -30,7 +30,7 @@ The settlement algorithm is **QAPS (Quorum-Attested Proof Settlement)**: fingerp
 git clone <repo-url> kept
 cd kept
 npm install
-npx playwright install chromium   # only needed for VERIFIER_BROWSER=local
+npx playwright install chromium webkit   # the verifier quorum uses both engines
 cp .env.example .env              # then fill in the values (each key is explained in the file)
 npm run doctor                    # checks every key and service, one line each
 npm run seed                      # creates the demo client and worker
@@ -55,7 +55,8 @@ _To be written once the end-to-end demo works._
 | `npm run dev` | Start the server and restart on file changes |
 | `npm run doctor` | Check env vars, database, PayPal, the LLM and the verifier browser |
 | `npm run seed` | Create or update the demo parties (safe to run more than once) |
-| `npm run check` | Typecheck, lint and run the tests |
+| `npm run check` | Typecheck, lint and run the tests (about 50 s; opens real browsers) |
+| `npm run demo:verify -- --runs 3` | Run the 2-of-3 verifier quorum against the three demo sites and check each result (no keys needed) |
 
 ## License
 

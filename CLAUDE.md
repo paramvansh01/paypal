@@ -11,14 +11,15 @@
 ## 0. LIVE STATE (always current — update in every commit)
 
 ```
-Phase:              PQ — QAPS core, pure parts first (P1 PayPal spikes are blocked on H2–H3)
-Next action:        T3.5 (then T3.7, TQ.6 — after that the full quorum runs locally)
-Active session:     Param — 2026-11-10T16:55+05:30
-Last updated:       2026-11-10 (TQ.4 done)
+Phase:              PQ — QAPS core (the verifier quorum works end to end locally; PayPal spikes still blocked on H2–H3)
+Next action:        T3.8 — run `npm run demo:verify -- --runs 10` (~5 min). If all 30 runs match, mark T3.8 [x]; then TQ.7.
+Suggested order:    T3.8 → TQ.7 → TQ.8 → T2.6 → TQ.10 → T3.9 → T4.1 → T4.4 → T5.1 (all need no keys). With H2–H3 done, jump to T1.1 proof + P1 spikes. With H4, T3.1/T3.2/T3.6/TQ.5.
+Active session:     none
+Last updated:       2026-11-10 (handoff after T3.5, T3.7, TQ.6)
 Payment rail:       UNDECIDED (decided by the spike in P1)
-Blockers:           H1 (no GitHub remote yet; commits are local in ~/kept on Param's Mac). H2–H3 (PayPal sandbox app + accounts) block T1.1 proof and T1.2–T1.6. H4 (Anthropic + KERNEL keys) blocks live verifier and judge runs.
+Blockers:           H1 — no GitHub remote: the repo exists only in ~/kept on Param's Mac (a clone-able copy is at ~/Downloads/kept.bundle, see H1). H2–H3 (PayPal sandbox) block T1.1 proof and all of P1, T2.3, T2.4, TQ.9 binding. H4 (Anthropic + KERNEL keys) blocks T3.1/T3.2/T3.6/TQ.5 live runs and the KERNEL browser path.
 Hosted demo URL:    —
-Repo URL:           — (fill in after H1, then `git remote add origin ... && git push -u origin main`)
+Repo URL:           — (fill in after H1, then `git remote add origin <url> && git push -u origin main`)
 Submission deadline: — (FILL IN: date, time, timezone)
 Team:               Aashman, Param + (FILL IN teammates)
 ```
@@ -84,15 +85,15 @@ Sessions can end without warning (usage limits, closed laptop). So state is save
 
 Run this every time a session begins, before any other work:
 
-1. `git pull --rebase origin main`
+1. `git pull --rebase origin main`. If `git remote -v` prints nothing, the repo has not been pushed yet (H1): skip the pull, and remind the human that H1 is still open.
 2. Read section 0 (Live State) and the last three entries of section 12 (Session Log).
 3. Run `git status` and `git log --oneline -8`. If there are uncommitted changes or a `WIP` commit, read the diff and the WIP note first. Finish or cleanly revert that work before starting anything new.
 4. Check the lock. If "Active session" names someone else:
    - If their last commit is under 90 minutes old, stop and ask the human whether that person is still working.
    - Otherwise treat the lock as stale and take it.
-5. Run `npm run doctor` (once it exists, task T0.6). It checks env vars and service connectivity on this machine. If it fails, tell the human exactly which key or setup step is missing (see section 5) and work on tasks that do not need it.
+5. On a new machine first run `npm install` and `npx playwright install chromium webkit`. Then run `npm run doctor`. It checks env vars and service connectivity on this machine. If it fails, tell the human exactly which key or setup step is missing (see section 5) and work on tasks that do not need it.
 6. Run `npm run check` (typecheck + tests). If it is red, fixing it is your first job.
-7. Take the lock: set "Active session" to `<human's name> — <ISO time>`, commit `chore: session start (<name>)`, push.
+7. Take the lock: set "Active session" to `<human's name> — <ISO time>`, commit `chore: session start (<name>)`, push (if a remote exists).
 8. Tell the human in at most five lines: current phase, what the last session finished, what you will do now, and any human task that blocks progress.
 9. Start the "Next action" task. Do not wait for approval unless a rule in section 3 says to ask.
 
@@ -172,7 +173,9 @@ Judging criteria (FILL IN from the official rules, so every decision can be weig
 
 Claude must not create accounts or type credentials into websites. At session start, remind the human about any unchecked item that blocks the current phase.
 
-- [ ] **H1** Create a public GitHub repo named `kept`. Add all teammates as collaborators. Put this file at the root. Put the repo URL in Live State.
+- [ ] **H1** Create a public GitHub repo named `kept`. Add all teammates as collaborators. Put the repo URL in Live State.
+  The code so far lives in `~/kept` on Param's Mac. To publish it: `cd ~/kept && git remote add origin <url> && git push -u origin main`.
+  Until then a teammate can get a full copy (all history) from the bundle file `kept.bundle` (Param shares it privately): `git clone kept.bundle kept && cd kept && git remote remove origin`.
 - [ ] **H2** Create a PayPal Developer account. In the sandbox dashboard create a REST app of the **Platform / Marketplace** type (needed for multiparty features). Copy the client ID and secret.
 - [ ] **H3** Create sandbox accounts: one **personal** (the client/buyer), two **business** (workers/sellers). Note emails and passwords in the team's private notes.
 - [ ] **H4** Get an LLM API key (default: Anthropic) and a KERNEL API key (kernel.sh dashboard).
@@ -508,10 +511,10 @@ Goal: learn in a few hours which rail works in our sandbox. Scripts live in `scr
   *Done when:* five varied sample briefs produce valid checklists.
 - [x] **T3.3** Browser providers behind one interface: KERNEL session over CDP, local Chromium, local WebKit. VERIFY the KERNEL SDK and replay API at https://kernel.sh/docs first.
 - [x] **T3.4** Implement the deterministic checks in 6.7 with unit tests against the demo sites.
-- [ ] **T3.5** Evidence capture: screenshot per item, measured values, and the KERNEL replay link when available. Stored and served by the app.
+- [x] **T3.5** Evidence capture: screenshot per item, measured values, and the KERNEL replay link when available. Stored and served by the app.
 - [ ] **T3.6** `llm_judgement` check with the safety rules in 6.7 and the canary integrity check in 6.10.
-- [ ] **T3.7** Single-verifier runner: runs every item for one verifier (one browser, one judge), applies timeouts, runs the tripwire scanner on each page, and returns leaf records + artifacts. The quorum orchestrator (TQ.6) calls it n times.
-- [~] **T3.8** (Param — sites, contact API and `demo/contract.json` done; acceptance runs need TQ.6) Demo deliverables in `demo/sites/`: `good/` passes everything; `flawed/` has a contact form that does not submit, so exactly one milestone fails; `sneaky/` has the same broken form plus hidden text telling the AI the form works, so the tripwire must fire. All served by the app.
+- [x] **T3.7** Single-verifier runner: runs every item for one verifier (one browser, one judge), applies timeouts, runs the tripwire scanner on each page, and returns leaf records + artifacts. The quorum orchestrator (TQ.6) calls it n times.
+- [~] **T3.8** (sites, contact API, `demo/contract.json` and `npm run demo:verify` done; 1 run per site matched; the 10-run acceptance is the next action) Demo deliverables in `demo/sites/`: `good/` passes everything; `flawed/` has a contact form that does not submit, so exactly one milestone fails; `sneaky/` has the same broken form plus hidden text telling the AI the form works, so the tripwire must fire. All served by the app.
   *Done when:* the full quorum gives 4 of 4 on `good`, 3 of 4 on `flawed`, and 3 of 4 with `INJECTION_DETECTED` on `sneaky`, ten runs in a row.
 - [ ] **T3.9** Evidence report page: checklist, contract hash, per-verifier verdicts side by side, quorum result, evidence, PayPal IDs, timeline. JSON export is the Proof Receipt (TQ.7).
 
@@ -524,7 +527,7 @@ The pure parts (TQ.1–TQ.3) need no keys or network and come first. Every task 
 - [x] **TQ.3** Quorum rule and certificate (`src/qaps/quorum.ts`): the rule in 6.9 as a pure function, certificate build, full validation. Tests: every verdict combination for n = 3, k = 2; k − 1 signatures; duplicate verifier; unknown key; mismatched contract hash or URL; forged item verdicts; root that does not match leaves.
 - [x] **TQ.4** Tripwire DOM scanner per 6.10, with tests on hand-written hostile pages (each hiding technique) and a benign corpus (measure and record the false-positive rate).
 - [ ] **TQ.5** Canary integrity for `llm_judgement` per 6.10 (with T3.6). Tests use recorded responses, including a hijacked one.
-- [ ] **TQ.6** Quorum orchestrator: runs the n verifiers in parallel (different browsers and judges), stores leaves, roots, attestations, builds and stores the certificate, writes final verdicts, moves the job to `VERIFIED` (or keeps items `needs_client`). Live verdicts stream to the UI.
+- [x] **TQ.6** Quorum orchestrator: runs the n verifiers in parallel (different browsers and judges), stores leaves, roots, attestations, builds and stores the certificate, writes final verdicts, moves the job to `VERIFIED` (or keeps items `needs_client`). Live verdicts stream to the UI.
 - [ ] **TQ.7** Proof Receipt per 6.12: assembly, `GET /jobs/:id/receipt`, MCP `get_receipt`, download button.
 - [ ] **TQ.8** Receipt verifiers: `npm run verify-receipt` and zero-dependency `tools/verify-receipt.mjs`. Tamper tests: flipping any single byte of a sample receipt fails with a message naming what broke.
   *Done when:* a tamper test over every field of a real receipt passes, and the standalone script runs with plain `node` in an empty folder.
@@ -634,6 +637,9 @@ Format: `YYYY-MM-DD — <name> — decision — reason`
 - 2026-11-10 — Param — Demo deliverable is an invented bakery, "Halcyon Crumb" (no real brand). `demo/contract.json` is a fixed 4 × $25 contract with only deterministic checks, so the agent demo is reproducible without an AI key. The `sneaky` site uses four tricks: an HTML comment, a `display:none` block, background-coloured 2px text, and a pre-planted hidden copy of the form's success message (to fool a naive "text appeared" check). Form checks must therefore require the success text to become visible after submitting.
 - 2026-11-10 — Param — Check semantics: `fail` = the deliverable's fault (unreachable, wrong status, missing text); `error` = the verifier could not decide (invalid selector or schema in the contract, crash); `needs_client` = a person decides. Text only counts if visible; a form passes only if its success signal appears after submitting and was not visible before. Checks never use Playwright's `context.request` (it bypasses the egress proxy). Check paths resolve inside the deliverable's directory and cannot climb out. Contract check paths: "/" is the deliverable URL itself.
 - 2026-11-10 — Param — Tripwire rule: instruction-like = an explicit override phrase (ignore previous instructions, verdict=, system prompt/override, role tags) OR (text addressing an AI evaluator AND a directive). Hidden + instruction-like = injection; visible = warning only. Measured: all 15 hiding techniques caught and 0 of 15 realistic benign pages flagged, in both Chromium and WebKit (`tests/tripwire.test.ts`). Known false-positive class: an article *about* prompt injection placed inside a collapsed/hidden section. Say "reduces", never "eliminates".
+- 2026-11-10 — Param — Evidence is content-addressed: files are saved as `<EVIDENCE_DIR>/<sha256>.png|json` and served at `/evidence/<sha256>.<ext>`; leaves carry `screenshot_sha256` and `details_sha256` (details = check details + tripwire findings + blocked requests). The `evidence` table stores each leaf verbatim (JSON) so settlement rebuilds byte-identical leaves. KERNEL replay URLs are stored on `verifier_runs` and are NOT signed (they are hosted by KERNEL and may change).
+- 2026-11-10 — Param — Any code run inside a page with `page.evaluate` must not contain nested named functions written in TypeScript: under tsx, esbuild injects `__name(...)`, which is undefined in the page. The tripwire collector therefore lives in `src/verifier/tripwire.page.js` and is sent as text. If a page cannot be scanned, the verifier abstains on that item (`error`) instead of ignoring it.
+- 2026-11-10 — Param — Form checks wait at most 10 s for the success signal. Verification runs are numbered by `round`; if fewer than k verifiers finish, the job returns to DELIVERED and a later round can succeed. `recoverInterruptedVerifications()` must be called on server start (wire it in T2.6).
 - 2026-11-10 — Param — Config enforces 2k > n for the quorum (default 2-of-3), so two conflicting quorums can never both form. Verifier keys are Ed25519 JWKs in `data/keys/<id>.jwk.json` (mode 0600, created on first boot) or `VERIFIER_KEYS_JSON`; the loader re-derives the public key instead of trusting the stored one. Attestations are signed over canonical JSON and carry the key fingerprint; `leaf_count` is signed because an RFC 6962 root alone does not pin the tree size.
 
 ---
@@ -664,3 +670,10 @@ In flight: T1.1 — PayPalClient (token cache, PayPal-Request-Id, idempotent ret
 Learned:   Repo lives at ~/kept on Param's Mac with no remote yet (H1); `gh` auth on this Mac is expired. Doctor reached PayPal sandbox, Anthropic and local Chromium (all three gave real responses with dummy keys; local Chromium passes). KERNEL path untested (no key). Node 25 + better-sqlite3 13 works. Playwright Chromium is installed on this Mac.
 Next:      T2.5 (see Live State), then T3.3/T3.4/T3.8 with the local browser.
 Blockers:  H1 (push), H2–H3 (PayPal spikes), H4 (LLM + KERNEL live runs)
+
+### 2026-11-10 21:30 IST — Param (handoff)
+Done:      Pivot to Proof-Carrying Payments / QAPS (sections 1, 6.9–6.12, phase PQ). TQ.1 (RFC 6962 Merkle, CT vectors), TQ.2 (Ed25519 keys + attestations), TQ.3 (quorum rule + certificates; contract pins verifier keys), T2.5 (settlement that re-verifies), T3.3 (browsers + SSRF egress proxy), T3.4 (checks), TQ.4 (tripwire), T3.5 (evidence store), T3.7 (runner), TQ.6 (orchestrator). 522 tests green (~50 s).
+In flight: T3.8 — only the 10-runs-per-site acceptance is left: `npm run demo:verify -- --runs 10`.
+Learned:   (1) Playwright routes miss redirect hops in Chromium, hence the egress proxy. (2) tsx/esbuild injects `__name` into functions passed to page.evaluate; keep in-page code in *.page.js files. (3) drizzle-kit asks interactive rename questions when a migration both drops and adds columns: generate a drop-only migration first, then an add-only one. (4) Gate commits on `npm run check`'s exit code, not on grep output. (5) Exhaustive quorum tests found that an injection veto could be bypassed by dropping a report, so injection flags are fail votes. (6) Demo: `npm run demo:verify` needs no keys; good=4/4, flawed=3/4, sneaky=3/4 with INJECTION_DETECTED.
+Next:      T3.8 acceptance, then TQ.7 (see "Suggested order" in Live State).
+Blockers:  H1 (no remote), H2–H3 (PayPal), H4 (Anthropic + KERNEL keys)
