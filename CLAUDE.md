@@ -12,9 +12,9 @@
 
 ```
 Phase:              P0 — Setup
-Next action:        T0.2
+Next action:        T0.3
 Active session:     Param — 2026-11-10T16:55+05:30
-Last updated:       2026-11-10 (T0.1 done)
+Last updated:       2026-11-10 (T0.2 done)
 Payment rail:       UNDECIDED (decided by the spike in P1)
 Blockers:           H1 (no GitHub remote yet; commits are local in ~/kept on Param's Mac), H2–H5 before P1
 Hosted demo URL:    —
@@ -379,7 +379,7 @@ Priority tiers: **MUST** = needed for a valid, convincing submission. **SHOULD**
 
 - [x] **T0.1** Initialise the repo: `package.json`, TypeScript config, ESLint, Vitest, folder layout from 6.2, `.gitignore` (include `.env`, `data/`, `node_modules/`, evidence files).
   *Done when:* `npm run check` passes on an empty project.
-- [ ] **T0.2** Add `LICENSE` (MIT, team names from Live State) at the root.
+- [x] **T0.2** Add `LICENSE` (MIT, team names from Live State) at the root.
   *Done when:* the file exists with standard MIT text.
 - [ ] **T0.3** Add `.env.example` from section 8 and a typed config loader that fails with a clear message naming any missing key.
 - [ ] **T0.4** Express server with `/health`, serving a placeholder page.
