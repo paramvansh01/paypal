@@ -12,9 +12,9 @@
 
 ```
 Phase:              P1 — PayPal spike (T1.1 code only; spikes need H2–H3)
-Next action:        T2.2 (T1.1 only needs `npm run spike:token` once H2 keys are in .env; T1.2–T1.6 blocked on H2–H3)
+Next action:        T2.5 (write the PaymentRail interface from 6.5 first; T2.3–T2.4 wait for the P1 rail decision). Also unblocked without keys: T3.3 local provider, T3.4, T3.8. T1.1 proof: `npm run spike:token` once H2 keys exist.
 Active session:     Param — 2026-11-10T16:55+05:30
-Last updated:       2026-11-10 (T2.1 done)
+Last updated:       2026-11-10 (T2.2 done)
 Payment rail:       UNDECIDED (decided by the spike in P1)
 Blockers:           H1 (no GitHub remote yet; commits are local in ~/kept on Param's Mac). H2–H3 (PayPal sandbox app + accounts) block T1.1 proof and T1.2–T1.6. H4 (Anthropic + KERNEL keys) blocks P3 live runs.
 Hosted demo URL:    —
@@ -411,7 +411,7 @@ Goal: learn in a few hours which rail works in our sandbox. Scripts live in `scr
 ### P2 — Core engine (MUST)
 
 - [x] **T2.1** Job state machine from 6.3 with guarded transitions and the `events` log. Unit tests for every legal and illegal transition.
-- [ ] **T2.2** Checklist schema (Zod), canonical JSON, `sha256` hash, freeze on `AGREED`. Tests: same checklist gives the same hash regardless of key order; any edit changes it.
+- [x] **T2.2** Checklist schema (Zod), canonical JSON, `sha256` hash, freeze on `AGREED`. Tests: same checklist gives the same hash regardless of key order; any edit changes it.
 - [ ] **T2.3** `PaymentRail` interface and the chosen implementation, built from the proven spike code. Includes `custom_id` = checklist hash.
 - [ ] **T2.4** The second rail implementation, at least to the level its spike reached.
 - [ ] **T2.5** Settlement logic: for a `VERIFIED` job, release passed milestones and refund failed ones, idempotently. Running `settle` twice must not move money twice. Tests with a mocked rail.
@@ -517,6 +517,7 @@ Format: `YYYY-MM-DD — <name> — decision — reason`
 - 2026-11-10 — Param — Money stored as integer cents (`total_amount_cents`, `amount_cents`); milestones and items carry a `position` column for canonical ordering. Migrations live in src/db/migrations (`npm run db:generate`) and run automatically in `openDb()`. Demo parties have fixed IDs `party_demo_client` (human) and `party_demo_worker` (agent).
 - 2026-11-10 — Param — Default `LLM_MODEL=claude-opus-5-5` (current Opus; Opus 5.5 has thinking always on, so control cost with `output_config.effort`, default `medium`, not a thinking budget). Packages: `@anthropic-ai/sdk` 1.x, `@onkernel/sdk` (`kernel.browsers.create()` → `cdp_ws_url`, `deleteByID`), `playwright`. Doctor KERNEL path is untested until a KERNEL key exists.
 - 2026-11-10 — Param — State graph additions not spelled out in 6.3: VERIFYING → DELIVERED (retry a crashed verifier run), DISPUTED → SETTLED (settle after a dispute is resolved), AUTO_RELEASED allowed from any state where PayPal holds funds. The core enforces only the graph; who may trigger each move is checked in the API layer (T2.6).
+- 2026-11-10 — Param — Checklist format: `{version: 1, currency, total_cents, milestones: [{title, amount_cents, items: [{description, check_type, params}]}]}`. Check params use a `path` relative to the deliverable URL (the URL is only known at delivery). Zod strict objects reject unknown keys; defaults are filled before hashing so an omitted default and the explicit default hash the same. Canonical JSON matches RFC 8785 for our data, so the browser (T6.3) can recompute it.
 
 ---
 
@@ -539,3 +540,10 @@ In flight: nothing
 Learned:   Delayed disbursement needs seller onboarding with a specific feature flag, and a community report says sandbox releases may not visibly move funds. That is why P1 is a spike with a time box and a fallback.
 Next:      T0.1, after the human finishes H1–H5
 Blockers:  H1–H5
+
+### 2026-11-10 17:30 IST — Param
+Done:      T0.1–T0.7 (P0 complete), T2.1, T2.2. T1.1 code + unit tests done.
+In flight: T1.1 — PayPalClient (token cache, PayPal-Request-Id, idempotent retries, debug_id errors) is tested with a mocked fetch; still needs `npm run spike:token` against the real sandbox once H2 keys are in .env.
+Learned:   Repo lives at ~/kept on Param's Mac with no remote yet (H1); `gh` auth on this Mac is expired. Doctor reached PayPal sandbox, Anthropic and local Chromium (all three gave real responses with dummy keys; local Chromium passes). KERNEL path untested (no key). Node 25 + better-sqlite3 13 works. Playwright Chromium is installed on this Mac.
+Next:      T2.5 (see Live State), then T3.3/T3.4/T3.8 with the local browser.
+Blockers:  H1 (push), H2–H3 (PayPal spikes), H4 (LLM + KERNEL live runs)
