@@ -42,12 +42,38 @@ const EnvSchema = z.object({
 
   VERIFIER_BROWSER: z.preprocess(blankToUndefined, z.enum(["kernel", "local"]).default("kernel")),
   KERNEL_API_KEY: optionalString,
+  QUORUM_N: z.preprocess(blankToUndefined, z.coerce.number().int().min(1).max(7).default(3)),
+  QUORUM_K: z.preprocess(blankToUndefined, z.coerce.number().int().min(1).max(7).default(2)),
+  VERIFIER_KEYS_DIR: z.preprocess(blankToUndefined, z.string().default("./data/keys")),
+  /** JSON object {verifier_id: Ed25519 private JWK}. Overrides the keys dir (for hosts without a disk). */
+  VERIFIER_KEYS_JSON: optionalString,
+  JUDGE_MODELS: z.preprocess(
+    blankToUndefined,
+    z
+      .string()
+      .default("claude-opus-5-5,claude-sonnet-5-5,claude-haiku-5-5")
+      .transform((s) => s.split(",").map((m) => m.trim()).filter(Boolean))
+      .pipe(z.array(z.string()).min(1)),
+  ),
 
   PORT: z.preprocess(blankToUndefined, z.coerce.number().int().positive().default(3000)),
   PUBLIC_BASE_URL: z.preprocess(blankToUndefined, z.url().default("http://localhost:3000")),
   DATABASE_PATH: z.preprocess(blankToUndefined, z.string().default("./data/kept.db")),
   MCP_AUTH_TOKEN: optionalString,
-});
+})
+  .superRefine((env, ctx) => {
+    // 2k > n means two conflicting quorums can never both form, so a single
+    // verifier can neither pay out nor block a payment on its own.
+    if (env.QUORUM_K > env.QUORUM_N) {
+      ctx.addIssue({ code: "custom", path: ["QUORUM_K"], message: `must be at most QUORUM_N (${env.QUORUM_N})` });
+    } else if (2 * env.QUORUM_K <= env.QUORUM_N) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["QUORUM_K"],
+        message: `must be more than half of QUORUM_N (${env.QUORUM_N}), so two conflicting quorums cannot both form`,
+      });
+    }
+  });
 
 export type Env = z.infer<typeof EnvSchema>;
 
@@ -64,7 +90,15 @@ export interface Config {
   };
   demo: { clientEmail?: string; workerEmail?: string; workerMerchantId?: string };
   llm: { apiKey?: string; model?: string };
-  verifier: { browser: Env["VERIFIER_BROWSER"]; kernelApiKey?: string };
+  verifier: {
+    browser: Env["VERIFIER_BROWSER"];
+    kernelApiKey?: string;
+    quorumN: number;
+    quorumK: number;
+    keysDir: string;
+    keysJson?: string;
+    judgeModels: string[];
+  };
   app: { port: number; publicBaseUrl: string; databasePath: string; mcpAuthToken?: string };
 }
 
@@ -103,7 +137,15 @@ export function loadConfig(source: NodeJS.ProcessEnv = process.env): Config {
       workerMerchantId: env.DEMO_WORKER_MERCHANT_ID,
     },
     llm: { apiKey: env.ANTHROPIC_API_KEY, model: env.LLM_MODEL },
-    verifier: { browser: env.VERIFIER_BROWSER, kernelApiKey: env.KERNEL_API_KEY },
+    verifier: {
+      browser: env.VERIFIER_BROWSER,
+      kernelApiKey: env.KERNEL_API_KEY,
+      quorumN: env.QUORUM_N,
+      quorumK: env.QUORUM_K,
+      keysDir: env.VERIFIER_KEYS_DIR,
+      keysJson: env.VERIFIER_KEYS_JSON,
+      judgeModels: env.JUDGE_MODELS,
+    },
     app: {
       port: env.PORT,
       publicBaseUrl: env.PUBLIC_BASE_URL,

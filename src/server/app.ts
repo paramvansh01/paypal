@@ -1,5 +1,6 @@
 import express, { type Express } from "express";
 import type { Config } from "../config.js";
+import { publicKeyring, type Keyring } from "../qaps/keys.js";
 
 const PLACEHOLDER_PAGE = `<!doctype html>
 <html lang="en">
@@ -20,13 +21,26 @@ const PLACEHOLDER_PAGE = `<!doctype html>
 </body>
 </html>`;
 
-export function createApp(config: Config): Express {
+export interface AppDeps {
+  keyring?: Keyring;
+}
+
+export function createApp(config: Config, deps: AppDeps = {}): Express {
   const app = express();
   app.disable("x-powered-by");
   app.use(express.json({ limit: "1mb" }));
 
   app.get("/health", (_req, res) => {
     res.json({ ok: true, service: "kept", rail: config.paypal.rail });
+  });
+
+  // Public verifier keys, so anyone can check attestations and Proof Receipts.
+  app.get("/.well-known/kept/verifiers.json", (_req, res) => {
+    if (!deps.keyring) {
+      res.status(503).json({ error: "verifier keys not loaded" });
+      return;
+    }
+    res.set("Cache-Control", "public, max-age=300").json(publicKeyring(deps.keyring));
   });
 
   app.get("/", (_req, res) => {

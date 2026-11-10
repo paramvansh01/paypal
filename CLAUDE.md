@@ -12,9 +12,9 @@
 
 ```
 Phase:              PQ — QAPS core, pure parts first (P1 PayPal spikes are blocked on H2–H3)
-Next action:        TQ.2
+Next action:        TQ.3
 Active session:     Param — 2026-11-10T16:55+05:30
-Last updated:       2026-11-10 (TQ.1 done)
+Last updated:       2026-11-10 (TQ.2 done)
 Payment rail:       UNDECIDED (decided by the spike in P1)
 Blockers:           H1 (no GitHub remote yet; commits are local in ~/kept on Param's Mac). H2–H3 (PayPal sandbox app + accounts) block T1.1 proof and T1.2–T1.6. H4 (Anthropic + KERNEL keys) blocks live verifier and judge runs.
 Hosted demo URL:    —
@@ -515,7 +515,7 @@ Goal: learn in a few hours which rail works in our sandbox. Scripts live in `scr
 The pure parts (TQ.1–TQ.3) need no keys or network and come first. Every task needs tests that include adversarial cases.
 
 - [x] **TQ.1** Merkle tree per 6.11 (`src/qaps/merkle.ts`): root, inclusion proof, proof verification. Test against published Certificate Transparency test vectors (fetch them; do not trust memory) and property tests (every leaf's proof verifies; any changed leaf, index or sibling fails).
-- [ ] **TQ.2** Verifier identity (`src/qaps/keys.ts`, `src/qaps/attestation.ts`): Ed25519 key generation/loading per 6.11, key fingerprints, attestation build/sign/verify over canonical JSON, `/.well-known/kept/verifiers.json`. Tests: valid signature verifies; any changed field, wrong key or truncated signature fails.
+- [x] **TQ.2** Verifier identity (`src/qaps/keys.ts`, `src/qaps/attestation.ts`): Ed25519 key generation/loading per 6.11, key fingerprints, attestation build/sign/verify over canonical JSON, `/.well-known/kept/verifiers.json`. Tests: valid signature verifies; any changed field, wrong key or truncated signature fails.
 - [ ] **TQ.3** Quorum rule and certificate (`src/qaps/quorum.ts`): the rule in 6.9 as a pure function, certificate build, full validation. Tests: every verdict combination for n = 3, k = 2; k − 1 signatures; duplicate verifier; unknown key; mismatched contract hash or URL; forged item verdicts; root that does not match leaves.
 - [ ] **TQ.4** Tripwire DOM scanner per 6.10, with tests on hand-written hostile pages (each hiding technique) and a benign corpus (measure and record the false-positive rate).
 - [ ] **TQ.5** Canary integrity for `llm_judgement` per 6.10 (with T3.6). Tests use recorded responses, including a hijacked one.
@@ -621,6 +621,7 @@ Format: `YYYY-MM-DD — <name> — decision — reason`
 - 2026-11-10 — Param — Pivot: reframed Kept as Proof-Carrying Payments with our own settlement algorithm, QAPS (fingerprinted contracts, k-of-n verifier quorum, prompt-injection tripwires, Merkle-signed evidence, verify-before-settle). Added phase PQ and sections 6.9–6.12 — a new payment primitive is a stronger story than a feature, and every part is buildable and demoable.
 - 2026-11-10 — Param — Cut from the earlier blueprint doc (Kept_Protocol_Technical_Architecture_Blueprint.docx): zk-SNARKs, on-chain/decentralised claims, OpenCV, WhatsApp bot, LangGraph/OpenAI Swarm, Elastic, Channel3, Bryntum, APIMatic — not buildable to a real, working standard in the time, and section 4 requires the project to work as described. Rule: every pitch term must map to code a judge can open.
 - 2026-11-10 — Param — Crypto uses only Node's built-in `crypto` (SHA-256, Ed25519) and WebCrypto in the browser; Merkle hashing follows RFC 6962 exactly — standard constructions are easier to defend to judges than anything custom.
+- 2026-11-10 — Param — Config enforces 2k > n for the quorum (default 2-of-3), so two conflicting quorums can never both form. Verifier keys are Ed25519 JWKs in `data/keys/<id>.jwk.json` (mode 0600, created on first boot) or `VERIFIER_KEYS_JSON`; the loader re-derives the public key instead of trusting the stored one. Attestations are signed over canonical JSON and carry the key fingerprint; `leaf_count` is signed because an RFC 6962 root alone does not pin the tree size.
 
 ---
 
