@@ -12,9 +12,9 @@
 
 ```
 Phase:              P0 — Setup
-Next action:        T0.5
+Next action:        T0.6
 Active session:     Param — 2026-11-10T16:55+05:30
-Last updated:       2026-11-10 (T0.4 done)
+Last updated:       2026-11-10 (T0.5 done)
 Payment rail:       UNDECIDED (decided by the spike in P1)
 Blockers:           H1 (no GitHub remote yet; commits are local in ~/kept on Param's Mac), H2–H5 before P1
 Hosted demo URL:    —
@@ -384,7 +384,7 @@ Priority tiers: **MUST** = needed for a valid, convincing submission. **SHOULD**
 - [x] **T0.3** Add `.env.example` from section 8 and a typed config loader that fails with a clear message naming any missing key.
 - [x] **T0.4** Express server with `/health`, serving a placeholder page.
   *Done when:* `npm run dev` starts and `/health` returns ok.
-- [ ] **T0.5** Database: Drizzle schema from 6.4, migration, and `npm run seed` creating the demo parties from env.
+- [x] **T0.5** Database: Drizzle schema from 6.4, migration, and `npm run seed` creating the demo parties from env.
   *Done when:* seed runs twice without duplicating rows.
 - [ ] **T0.6** `npm run doctor`: checks every env var, gets a PayPal token, makes one tiny LLM call, opens one verifier browser. Prints a pass/fail table.
   *Done when:* it reports each service separately and exits non-zero on failure.
@@ -514,6 +514,7 @@ Format: `YYYY-MM-DD — <name> — decision — reason`
 - 2026-11-10 — Param — Repo started locally at ~/kept before H1 — P0 needs no accounts; push once the GitHub repo exists.
 - 2026-11-10 — Param — Current major versions: Express 5, Zod 4, ESLint 10 flat config, Vitest 4, ESM (`"type": "module"`), run with tsx (no build step for the server) — avoids a compile step for judges.
 - 2026-11-10 — Param — Config validates formats at boot but only demands a service's keys when that service is used (`requireConfig(config, "paypal")`) — lets /health and the UI run before every secret exists; doctor reports per group. PAYPAL_BASE_URL must contain "sandbox".
+- 2026-11-10 — Param — Money stored as integer cents (`total_amount_cents`, `amount_cents`); milestones and items carry a `position` column for canonical ordering. Migrations live in src/db/migrations (`npm run db:generate`) and run automatically in `openDb()`. Demo parties have fixed IDs `party_demo_client` (human) and `party_demo_worker` (agent).
 
 ---
 
