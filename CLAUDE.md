@@ -11,11 +11,11 @@
 ## 0. LIVE STATE (always current — update in every commit)
 
 ```
-Phase:              PQ — QAPS core (the verifier quorum works end to end locally; PayPal spikes still blocked on H2–H3)
-Next action:        T4.1 — MCP server (tools in 6.8 over Streamable HTTP at `/mcp` + stdio), built on `src/core/jobs.ts`, `getReceipt()` and the party tokens from `src/server/auth.ts`.
-Suggested order:    T4.1 → TQ.10 → T3.9 → T4.1 → T4.4 → T5.1 (all need no keys). With H2–H3 done, jump to T1.1 proof + P1 spikes. With H4, T3.1/T3.2/T3.6/TQ.5.
+Phase:              P4 — MCP server and agents (QAPS core done locally; PayPal spikes still blocked on H2–H3)
+Next action:        T4.2 — check the MCP server with the MCP Inspector and one real client (Claude Code: `claude mcp add`), and put the exact connection steps in the README.
+Suggested order:    T4.2 → T4.4 → T5.1 (all need no keys). With H2–H3 done, jump to T1.1 proof + P1 spikes. With H4, T3.1/T3.2/T3.6/TQ.5.
 Active session:     Aashman — 2026-11-10T13:38Z
-Last updated:       2026-11-11 (Aashman: T3.8, TQ.7, TQ.8, T2.6, TQ.10, T3.9 done)
+Last updated:       2026-11-11 (Aashman: T4.1 done)
 Payment rail:       UNDECIDED (decided by the spike in P1)
 Blockers:           H2–H3 (PayPal sandbox) block T1.1 proof and all of P1, T2.3, T2.4, TQ.9 binding. H4 (Anthropic + KERNEL keys) blocks T3.1/T3.2/T3.6/TQ.5 live runs and the KERNEL browser path.
 Hosted demo URL:    —
@@ -527,7 +527,7 @@ The pure parts (TQ.1–TQ.3) need no keys or network and come first. Every task 
 - [x] **TQ.4** Tripwire DOM scanner per 6.10, with tests on hand-written hostile pages (each hiding technique) and a benign corpus (measure and record the false-positive rate).
 - [ ] **TQ.5** Canary integrity for `llm_judgement` per 6.10 (with T3.6). Tests use recorded responses, including a hijacked one.
 - [x] **TQ.6** Quorum orchestrator: runs the n verifiers in parallel (different browsers and judges), stores leaves, roots, attestations, builds and stores the certificate, writes final verdicts, moves the job to `VERIFIED` (or keeps items `needs_client`). Live verdicts stream to the UI.
-- [x] **TQ.7** Proof Receipt per 6.12: assembly, `GET /jobs/:id/receipt`, MCP `get_receipt`, download button. (Assembly, `verifyReceipt`, `getReceipt()` and the route with `?download=1` are done; the MCP tool is wired in T4.1 and the button in T3.9, both calling the same code.)
+- [x] **TQ.7** Proof Receipt per 6.12: assembly, `GET /jobs/:id/receipt`, MCP `get_receipt`, download button.
 - [x] **TQ.8** Receipt verifiers: `npm run verify-receipt` and zero-dependency `tools/verify-receipt.mjs`. Tamper tests: flipping any single byte of a sample receipt fails with a message naming what broke.
   *Done when:* a tamper test over every field of a real receipt passes, and the standalone script runs with plain `node` in an empty folder.
 - [~] **TQ.9** (Param — validate-before-settle done in T2.5; PayPal field binding waits for the rail spike) Settlement verifies, not trusts: `settle` validates the certificate from scratch before any PayPal call, and binds the certificate hash to the PayPal capture/refund (VERIFY fields).
@@ -537,7 +537,7 @@ The pure parts (TQ.1–TQ.3) need no keys or network and come first. Every task 
 
 ### P4 — MCP server and demo agents (MUST)
 
-- [ ] **T4.1** MCP server with the tools in 6.8 over Streamable HTTP at `/mcp` with bearer-token auth, plus a stdio entry point. Clear tool descriptions and input schemas, since agents read them. `get_receipt` calls `getReceipt()` from src/core/receipt-store.ts.
+- [x] **T4.1** MCP server with the tools in 6.8 over Streamable HTTP at `/mcp` with bearer-token auth, plus a stdio entry point. Clear tool descriptions and input schemas, since agents read them. `get_receipt` calls `getReceipt()` from src/core/receipt-store.ts.
 - [ ] **T4.2** Test with the MCP Inspector and with one real client (Claude Code or Claude Desktop). Put the exact connection steps in the README.
 - [ ] **T4.3** Buyer agent (`agents/buyer.ts`): given a goal and a budget, it posts the job, accepts the checklist, requests the lock, waits, then calls verify and settle.
 - [ ] **T4.4** Worker agent (`agents/worker.ts`): accepts a job and submits a deliverable. In demo mode it submits `good` or `flawed` by flag, so the run is repeatable.
@@ -653,6 +653,7 @@ Format: `YYYY-MM-DD — <name> — decision — reason`
 - 2026-11-10 — Aashman — `docs/PROTOCOL.md` is the normative spec for kept-qaps/1; `docs/protocol-vectors.json` holds deterministic test vectors (fixed public seeds, `npm run protocol-vectors -- --write`). `tests/protocol-vectors.test.ts` fails if the code's output drifts from the committed vectors, checks them with both verifiers and plain node:crypto, and checks the spec quotes the vector hash and every receipt check name. Any deliberate format change: update PROTOCOL.md, regenerate vectors, bump `kept-qaps/N` if it breaks old receipts.
 - 2026-11-11 — Aashman — The evidence report (`/jobs/:id/report`, `web/report/`) is a build-free page (plain HTML/CSS/JS module), not React yet: T5 adds the React/Vite app and can embed or port it. It renders from the Proof Receipt (plus `/jobs/:id` for live status and replay links), so it shows exactly what the proof contains. Hostile text from deliverables reaches it through summaries, so data is only set via textContent/attributes, screenshots are loaded from `/evidence/<sha>.png` rebuilt from the hash (never the receipt's URL), and the page is served with a strict CSP (`default-src 'none'`, self-only scripts/styles/images, no inline). An XSS probe test checks markup in a summary renders as text. It does not verify the receipt in the browser yet (TQ.12).
 - 2026-11-11 — Aashman — `npm run demo:report -- --site good|flawed|sneaky` runs the real quorum on a demo site, settles on an OFFLINE stand-in rail (every ID starts with `OFFLINE-`, so nobody mistakes it for PayPal) and serves the report. For previews and the video until the PayPal rail exists.
+- 2026-11-11 — Aashman — MCP server (`src/mcp/server.ts`, SDK `@modelcontextprotocol/sdk` 1.32): `POST /mcp` is stateless Streamable HTTP with JSON responses (no sessions, GET/DELETE → 405); each request builds a fresh McpServer bound to the party of its bearer token, so the acting party never comes from a tool argument. Every MCP call needs a token, reads included (REST reads stay public). stdio entry `src/mcp/stdio.ts` (`npm run --silent mcp`, or `node_modules/.bin/tsx src/mcp/stdio.ts`) acts as the party in `KEPT_PARTY_TOKEN`, reads `.env` from its cwd, and sends all logs to stderr. Tools beyond 6.8, needed to finish a job without REST: `whoami`, `propose_checklist`, `cancel_job`, `confirm_funds`. `verify` waits for the quorum (unlike REST's 202). Domain errors come back as tool errors labelled like the HTTP status (`Not allowed: …`, `Unavailable: … T2.3`), from one shared `classifyError` (`src/server/errors.ts`). Shared wiring for both entry points lives in `src/server/services.ts`.
 
 ---
 
@@ -730,4 +731,11 @@ Done:      T3.9 — evidence report page (`web/report/`, served at `/jobs/:id/re
 In flight: nothing
 Learned:   The receipt tamper test (hundreds of mutations) needs a long timeout once browser tests run in parallel; it has 120 s now.
 Next:      T4.1
+Blockers:  H2–H3 (PayPal), H4 (Anthropic + KERNEL keys), H5 (`.env` on Aashman's Mac).
+
+### 2026-11-11 02:05 IST — Aashman
+Done:      T4.1 — MCP server: 14 tools (6.8 plus whoami, propose_checklist, cancel_job, confirm_funds) over Streamable HTTP at `/mcp` with party-token auth, and a stdio entry (`npm run --silent mcp`). Tests use the real SDK client: auth (401/503/405), tool list and schemas, role rules and errors, no-rail message, a full two-agent job on the flawed site (real quorum, mock rail: 3 released, 1 refunded, receipt verifies), and stdio (good token works, bad token exits 1). Error mapping shared with REST. 591 tests green.
+In flight: nothing
+Learned:   The SDK 1.x registerTool takes Zod 4 raw shapes directly. `npm run` prints a banner on stdout, which breaks stdio MCP: use `npm run --silent mcp` or call tsx directly. There is also a split v2 SDK (`@modelcontextprotocol/server` 2.x); we stay on the documented 1.x package.
+Next:      T4.2
 Blockers:  H2–H3 (PayPal), H4 (Anthropic + KERNEL keys), H5 (`.env` on Aashman's Mac).

@@ -21,7 +21,8 @@
     "verify-receipt": "tsx scripts/verify-receipt.ts",
     "party-token": "tsx scripts/party-token.ts",
     "protocol-vectors": "tsx scripts/protocol-vectors.ts",
-    "demo:report": "tsx scripts/demo-report.ts"
+    "demo:report": "tsx scripts/demo-report.ts",
+    "mcp": "tsx src/mcp/stdio.ts"
   },
   "license": "MIT",
   "type": "module",
@@ -40,6 +41,7 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.7.0",
+    "@modelcontextprotocol/sdk": "^1.32.2",
     "@onkernel/sdk": "^0.144.0",
     "ajv": "^8.20.0",
     "better-sqlite3": "^13.0.3",

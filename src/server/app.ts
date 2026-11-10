@@ -6,7 +6,10 @@ import { JobNotFoundError } from "../core/state.js";
 import type { Db } from "../db/client.js";
 import type { PaymentRail } from "../rails/types.js";
 import type { VerificationSummary } from "../verifier/orchestrator.js";
+import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
+import { createMcpServer } from "../mcp/server.js";
 import { apiErrors, apiRouter } from "./api.js";
+import { requireParty } from "./auth.js";
 import { publicKeyring, type Keyring, type VerifierKey } from "../qaps/keys.js";
 import type { EvidenceStore } from "../verifier/evidence-store.js";
 
@@ -128,6 +131,28 @@ export function createApp(config: Config, deps: AppDeps = {}): Express {
     res.set({ "Content-Security-Policy": REPORT_CSP, "X-Content-Type-Options": "nosniff", "Referrer-Policy": "no-referrer", "Cache-Control": "no-store" });
     res.sendFile("index.html", { root: REPORT_DIR });
   });
+
+  // The MCP server (T4.1): Streamable HTTP, stateless, one MCP server per request
+  // bound to the party whose bearer token came with it.
+  if (deps.db && deps.keyring) {
+    const { db, keyring } = deps;
+    app.post("/mcp", requireParty(db, config.app.mcpAuthToken), (req, res, next) => {
+      const server = createMcpServer(config, { db, keyring, issuer: deps.issuer, rail: deps.rail, verify: deps.verify }, req.party!);
+      const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined, enableJsonResponse: true });
+      res.on("close", () => {
+        void transport.close();
+        void server.close();
+      });
+      server
+        .connect(transport)
+        .then(() => transport.handleRequest(req, res, req.body))
+        .catch(next);
+    });
+    // Stateless: no server-initiated streams and no sessions to delete.
+    app.all("/mcp", (_req, res) => {
+      res.status(405).set("Allow", "POST").json({ jsonrpc: "2.0", error: { code: -32000, message: "Method not allowed: this MCP server is stateless, use POST." }, id: null });
+    });
+  }
 
   // The job lifecycle API (T2.6).
   if (deps.db && deps.keyring) {

@@ -1,7 +1,6 @@
 import express, { type NextFunction, type Request, type Response, type Router } from "express";
 import { z } from "zod";
 import type { Config } from "../config.js";
-import { ChecklistFrozenError, ChecklistTamperedError } from "../core/checklist-store.js";
 import {
   acceptChecklist,
   assertCanVerify,
@@ -11,26 +10,24 @@ import {
   confirmFunds,
   createJob,
   DecisionInput,
-  ForbiddenError,
-  JobInputError,
   jobView,
   ledger,
   listJobs,
   lockFunds,
   proposeChecklist,
-  RailError,
   serverQuorum,
   submitWork,
 } from "../core/jobs.js";
-import { DecisionError, loadProofFromDb, recordClientDecision } from "../core/proof-store.js";
-import { buildRailJob, SettlementError, settleJob } from "../core/settlement.js";
-import { IllegalTransitionError, JobNotFoundError, recordEvent } from "../core/state.js";
+import { loadProofFromDb, recordClientDecision } from "../core/proof-store.js";
+import { buildRailJob, settleJob } from "../core/settlement.js";
+import { recordEvent } from "../core/state.js";
 import type { Db } from "../db/client.js";
 import { jobs } from "../db/schema.js";
 import type { Keyring } from "../qaps/keys.js";
 import type { PaymentRail } from "../rails/types.js";
-import { VerificationError, type VerificationSummary } from "../verifier/orchestrator.js";
+import type { VerificationSummary } from "../verifier/orchestrator.js";
 import { requireParty } from "./auth.js";
+import { classifyError, ServiceUnavailable } from "./errors.js";
 import { eq } from "drizzle-orm";
 
 /**
@@ -196,26 +193,13 @@ export function apiRouter(config: Config, deps: ApiDeps): Router {
   return r;
 }
 
-export class ServiceUnavailable extends Error {}
+export { ServiceUnavailable };
 
 /** Maps domain errors to HTTP status codes with a message a person can act on. */
 export function apiErrors(err: unknown, _req: Request, res: Response, next: NextFunction): void {
   if (res.headersSent) return next(err);
-  const send = (status: number, body: Record<string, unknown>) => void res.status(status).json(body);
-  if (err instanceof z.ZodError) {
-    const issue = err.issues[0];
-    return send(400, { error: `${issue?.path.join(".") || "body"}: ${issue?.message ?? "invalid"}`, issues: err.issues });
-  }
-  if (err instanceof SyntaxError && "body" in err) return send(400, { error: "body is not valid JSON" });
-  if (err instanceof JobInputError) return send(400, { error: err.message });
-  if (err instanceof ForbiddenError) return send(403, { error: err.message });
-  if (err instanceof JobNotFoundError) return send(404, { error: err.message });
-  if (err instanceof IllegalTransitionError || err instanceof ChecklistFrozenError || err instanceof DecisionError || err instanceof VerificationError) {
-    return send(409, { error: err.message });
-  }
-  if (err instanceof SettlementError) return send(409, { error: err.message, code: err.code });
-  if (err instanceof ChecklistTamperedError) return send(500, { error: err.message });
-  if (err instanceof RailError) return send(502, { error: err.message });
-  if (err instanceof ServiceUnavailable) return send(503, { error: err.message });
-  next(err);
+  const c = classifyError(err);
+  if (!c) return next(err);
+  const { status, ...body } = c;
+  res.status(status).json(body);
 }
