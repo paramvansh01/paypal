@@ -1,4 +1,4 @@
-/** Raw OAuth client-credentials call. Caching and the request helper are built on this in T1.1. */
+/** Raw OAuth client-credentials call (docs: developer.paypal.com/api/rest/authentication). */
 export interface PayPalToken {
   access_token: string;
   token_type: string;
@@ -23,8 +23,9 @@ export async function requestAccessToken(
   clientId: string,
   clientSecret: string,
   signal?: AbortSignal,
+  fetchImpl: typeof fetch = fetch,
 ): Promise<PayPalToken> {
-  const res = await fetch(`${baseUrl}/v1/oauth2/token`, {
+  const res = await fetchImpl(`${baseUrl}/v1/oauth2/token`, {
     method: "POST",
     headers: {
       Authorization: `Basic ${Buffer.from(`${clientId}:${clientSecret}`).toString("base64")}`,

@@ -12,11 +12,11 @@
 
 ```
 Phase:              P1 — PayPal spike (T1.1 code only; spikes need H2–H3)
-Next action:        T1.1
+Next action:        T2.1 (T1.1 only needs `npm run spike:token` once H2 keys are in .env; T1.2–T1.6 blocked on H2–H3)
 Active session:     Param — 2026-11-10T16:55+05:30
-Last updated:       2026-11-10 (P0 done)
+Last updated:       2026-11-10 (T1.1 code done)
 Payment rail:       UNDECIDED (decided by the spike in P1)
-Blockers:           H1 (no GitHub remote yet; commits are local in ~/kept on Param's Mac), H2–H5 before P1
+Blockers:           H1 (no GitHub remote yet; commits are local in ~/kept on Param's Mac). H2–H3 (PayPal sandbox app + accounts) block T1.1 proof and T1.2–T1.6. H4 (Anthropic + KERNEL keys) blocks P3 live runs.
 Hosted demo URL:    —
 Repo URL:           — (fill in after H1, then `git remote add origin ... && git push -u origin main`)
 Submission deadline: — (FILL IN: date, time, timezone)
@@ -394,7 +394,7 @@ Priority tiers: **MUST** = needed for a valid, convincing submission. **SHOULD**
 
 Goal: learn in a few hours which rail works in our sandbox. Scripts live in `scripts/spike-*.ts`. Results go in `docs/SPIKE_RESULTS.md` with real request and response samples (secrets removed).
 
-- [ ] **T1.1** PayPal client: token fetch with caching, a request helper with `PayPal-Request-Id`, structured errors that keep PayPal's `debug_id`.
+- [!] **T1.1** PayPal client: token fetch with caching, a request helper with `PayPal-Request-Id`, structured errors that keep PayPal's `debug_id`.
   *Done when:* a unit test covers token reuse and a script fetches a real token.
 - [ ] **T1.2** Spike A — fallback rail first, because it has no setup dependencies: create an `AUTHORIZE` order, print the approval link, human approves with the sandbox personal account, authorize, partially capture as final, confirm the remainder is released. Also test void.
   *Done when:* the results file shows the IDs and the buyer's sandbox balance before and after.
