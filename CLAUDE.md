@@ -12,9 +12,9 @@
 
 ```
 Phase:              PQ — QAPS core, pure parts first (P1 PayPal spikes are blocked on H2–H3)
-Next action:        TQ.1
+Next action:        TQ.2
 Active session:     Param — 2026-11-10T16:55+05:30
-Last updated:       2026-11-10 (plan rewritten around Proof-Carrying Payments + QAPS)
+Last updated:       2026-11-10 (TQ.1 done)
 Payment rail:       UNDECIDED (decided by the spike in P1)
 Blockers:           H1 (no GitHub remote yet; commits are local in ~/kept on Param's Mac). H2–H3 (PayPal sandbox app + accounts) block T1.1 proof and T1.2–T1.6. H4 (Anthropic + KERNEL keys) blocks live verifier and judge runs.
 Hosted demo URL:    —
@@ -514,7 +514,7 @@ Goal: learn in a few hours which rail works in our sandbox. Scripts live in `scr
 
 The pure parts (TQ.1–TQ.3) need no keys or network and come first. Every task needs tests that include adversarial cases.
 
-- [ ] **TQ.1** Merkle tree per 6.11 (`src/qaps/merkle.ts`): root, inclusion proof, proof verification. Test against published Certificate Transparency test vectors (fetch them; do not trust memory) and property tests (every leaf's proof verifies; any changed leaf, index or sibling fails).
+- [x] **TQ.1** Merkle tree per 6.11 (`src/qaps/merkle.ts`): root, inclusion proof, proof verification. Test against published Certificate Transparency test vectors (fetch them; do not trust memory) and property tests (every leaf's proof verifies; any changed leaf, index or sibling fails).
 - [ ] **TQ.2** Verifier identity (`src/qaps/keys.ts`, `src/qaps/attestation.ts`): Ed25519 key generation/loading per 6.11, key fingerprints, attestation build/sign/verify over canonical JSON, `/.well-known/kept/verifiers.json`. Tests: valid signature verifies; any changed field, wrong key or truncated signature fails.
 - [ ] **TQ.3** Quorum rule and certificate (`src/qaps/quorum.ts`): the rule in 6.9 as a pure function, certificate build, full validation. Tests: every verdict combination for n = 3, k = 2; k − 1 signatures; duplicate verifier; unknown key; mismatched contract hash or URL; forged item verdicts; root that does not match leaves.
 - [ ] **TQ.4** Tripwire DOM scanner per 6.10, with tests on hand-written hostile pages (each hiding technique) and a benign corpus (measure and record the false-positive rate).
