@@ -11,10 +11,10 @@
 ## 0. LIVE STATE (always current — update in every commit)
 
 ```
-Phase:              P0 — Setup
-Next action:        T0.7
+Phase:              P1 — PayPal spike (T1.1 code only; spikes need H2–H3)
+Next action:        T1.1
 Active session:     Param — 2026-11-10T16:55+05:30
-Last updated:       2026-11-10 (T0.6 done)
+Last updated:       2026-11-10 (P0 done)
 Payment rail:       UNDECIDED (decided by the spike in P1)
 Blockers:           H1 (no GitHub remote yet; commits are local in ~/kept on Param's Mac), H2–H5 before P1
 Hosted demo URL:    —
@@ -388,7 +388,7 @@ Priority tiers: **MUST** = needed for a valid, convincing submission. **SHOULD**
   *Done when:* seed runs twice without duplicating rows.
 - [x] **T0.6** `npm run doctor`: checks every env var, gets a PayPal token, makes one tiny LLM call, opens one verifier browser. Prints a pass/fail table.
   *Done when:* it reports each service separately and exits non-zero on failure.
-- [ ] **T0.7** README skeleton: what Kept is, prerequisites, setup, run, placeholder for the demo walkthrough.
+- [x] **T0.7** README skeleton: what Kept is, prerequisites, setup, run, placeholder for the demo walkthrough.
 
 ### P1 — PayPal spike: prove the money path (MUST, highest risk)
 
