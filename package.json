@@ -36,6 +36,7 @@
   "dependencies": {
     "@anthropic-ai/sdk": "^1.7.0",
     "@onkernel/sdk": "^0.144.0",
+    "ajv": "^8.20.0",
     "better-sqlite3": "^13.0.3",
     "dotenv": "^18.0.10",
     "drizzle-orm": "^0.45.4",
