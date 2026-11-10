@@ -47,6 +47,8 @@ const EnvSchema = z.object({
   VERIFIER_KEYS_DIR: z.preprocess(blankToUndefined, z.string().default("./data/keys")),
   /** JSON object {verifier_id: Ed25519 private JWK}. Overrides the keys dir (for hosts without a disk). */
   VERIFIER_KEYS_JSON: optionalString,
+  EVIDENCE_DIR: z.preprocess(blankToUndefined, z.string().default("./data/evidence")),
+  VERIFIER_CHECK_TIMEOUT_MS: z.preprocess(blankToUndefined, z.coerce.number().int().min(1000).max(120_000).default(20_000)),
   JUDGE_MODELS: z.preprocess(
     blankToUndefined,
     z
@@ -98,6 +100,8 @@ export interface Config {
     keysDir: string;
     keysJson?: string;
     judgeModels: string[];
+    evidenceDir: string;
+    checkTimeoutMs: number;
   };
   app: { port: number; publicBaseUrl: string; databasePath: string; mcpAuthToken?: string };
 }
@@ -145,6 +149,8 @@ export function loadConfig(source: NodeJS.ProcessEnv = process.env): Config {
       keysDir: env.VERIFIER_KEYS_DIR,
       keysJson: env.VERIFIER_KEYS_JSON,
       judgeModels: env.JUDGE_MODELS,
+      evidenceDir: env.EVIDENCE_DIR,
+      checkTimeoutMs: env.VERIFIER_CHECK_TIMEOUT_MS,
     },
     app: {
       port: env.PORT,

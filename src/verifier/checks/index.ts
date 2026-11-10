@@ -177,7 +177,8 @@ const formSubmits: Check<ItemOf<"form_submits">> = async (item, ctx) => {
     if ((await submit.count()) > 0) await submit.click();
     else await form.evaluate((f) => (f as HTMLFormElement).requestSubmit());
 
-    const deadline = Date.now() + ctx.timeoutMs;
+    // Wait up to 10 s for the confirmation (or the check budget, if shorter).
+    const deadline = Date.now() + Math.min(ctx.timeoutMs, 10_000);
     let textOk = !success.text;
     let urlOk = !success.url_contains;
     while (Date.now() < deadline && !(textOk && urlOk)) {

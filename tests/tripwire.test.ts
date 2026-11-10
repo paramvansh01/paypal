@@ -153,3 +153,13 @@ describe.each<[string, () => BrowserProvider]>([
     }
   }, 60_000);
 });
+
+describe("collector source", () => {
+  it("is plain JavaScript that runs without any compiler helpers", async () => {
+    const src = readFileSync(new URL("../src/verifier/tripwire.page.js", import.meta.url), "utf8");
+    const code = src.replace(/^\/\*[\s\S]*?\*\/\s*(\/\/.*\n)?/, "");
+    expect(code).not.toMatch(/__name|__defProp|require\(|^\s*import /m);
+    // Defines cleanly in a bare scope (what the browser gets).
+    expect(() => new Function(`return (${code})`)).not.toThrow();
+  });
+});

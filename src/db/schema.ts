@@ -65,6 +65,8 @@ export const jobs = sqliteTable(
     /** Quorum policy from the contract (k, n, verifier keys). Part of the hashed contract. */
     quorum: text("quorum", { mode: "json" }).$type<QuorumPolicyJson>(),
     paypalOrderId: text("paypal_order_id"),
+    /** URL the worker submitted; every verifier checks exactly this. */
+    deliverableUrl: text("deliverable_url"),
     rail: text("rail", { enum: ["delayed_disbursement", "auth_capture"] }).notNull(),
     createdAt: createdAt(),
   },
@@ -116,24 +118,93 @@ export const checklistItems = sqliteTable(
     description: text("description").notNull(),
     checkType: text("check_type", { enum: CHECK_TYPES }).notNull(),
     params: text("params", { mode: "json" }).notNull().$type<Record<string, unknown>>(),
+    /** Final verdict from the quorum rule (or the client, for client_approval items). */
     verdict: text("verdict", { enum: ["pass", "fail", "needs_client"] }),
-    evidenceId: text("evidence_id"),
+    verdictReason: text("verdict_reason", { enum: ["quorum", "no_quorum", "injection", "client"] }),
   },
   (t) => [uniqueIndex("items_milestone_position_uq").on(t.milestoneId, t.position)],
 );
 
-export const evidence = sqliteTable("evidence", {
-  id: text("id").primaryKey(),
-  itemId: text("item_id")
-    .notNull()
-    .references(() => checklistItems.id),
-  summary: text("summary").notNull(),
-  measuredValue: text("measured_value"),
-  screenshotPath: text("screenshot_path"),
-  replayUrl: text("replay_url"),
-  raw: text("raw", { mode: "json" }).$type<unknown>(),
-  createdAt: createdAt(),
-});
+/** One verifier's run over a whole job (section 6.9). */
+export const verifierRuns = sqliteTable(
+  "verifier_runs",
+  {
+    id: text("id").primaryKey(),
+    jobId: text("job_id")
+      .notNull()
+      .references(() => jobs.id),
+    /** Groups the n runs of one verification round. */
+    round: integer("round").notNull(),
+    verifierId: text("verifier_id").notNull(),
+    browser: text("browser").notNull(),
+    judgeModel: text("judge_model").notNull(),
+    deliverableUrl: text("deliverable_url").notNull(),
+    status: text("status", { enum: ["running", "done", "error"] }).notNull().default("running"),
+    error: text("error"),
+    merkleRoot: text("merkle_root"),
+    leafCount: integer("leaf_count"),
+    /** The signed attestation, exactly as signed. */
+    attestation: text("attestation", { mode: "json" }).$type<Record<string, unknown>>(),
+    /** KERNEL replay link, when recorded. Not part of the signed evidence. */
+    replayUrl: text("replay_url"),
+    startedAt: createdAt(),
+    finishedAt: text("finished_at"),
+  },
+  (t) => [uniqueIndex("verifier_runs_round_uq").on(t.jobId, t.round, t.verifierId)],
+);
+
+/** One verifier's result for one item: the exact signed leaf plus where its artifacts live. */
+export const evidence = sqliteTable(
+  "evidence",
+  {
+    id: text("id").primaryKey(),
+    verifierRunId: text("verifier_run_id")
+      .notNull()
+      .references(() => verifierRuns.id),
+    itemId: text("item_id")
+      .notNull()
+      .references(() => checklistItems.id),
+    leafIndex: integer("leaf_index").notNull(),
+    /** The LeafRecord exactly as hashed into the Merkle tree. */
+    leaf: text("leaf", { mode: "json" }).notNull().$type<Record<string, unknown>>(),
+    leafHash: text("leaf_hash").notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [uniqueIndex("evidence_run_leaf_uq").on(t.verifierRunId, t.leafIndex), index("evidence_item_idx").on(t.itemId)],
+);
+
+export const quorumCertificates = sqliteTable(
+  "quorum_certificates",
+  {
+    id: text("id").primaryKey(),
+    jobId: text("job_id")
+      .notNull()
+      .references(() => jobs.id),
+    round: integer("round").notNull(),
+    certificate: text("certificate", { mode: "json" }).notNull().$type<Record<string, unknown>>(),
+    certificateHash: text("certificate_hash").notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [uniqueIndex("certificates_job_round_uq").on(t.jobId, t.round)],
+);
+
+/** The client's decision on an item the quorum left to a person. */
+export const clientDecisions = sqliteTable(
+  "client_decisions",
+  {
+    id: text("id").primaryKey(),
+    jobId: text("job_id")
+      .notNull()
+      .references(() => jobs.id),
+    m: integer("m").notNull(),
+    i: integer("i").notNull(),
+    decision: text("decision", { enum: ["approve", "reject"] }).notNull(),
+    actor: text("actor").notNull(),
+    note: text("note"),
+    createdAt: createdAt(),
+  },
+  (t) => [uniqueIndex("client_decisions_item_uq").on(t.jobId, t.m, t.i)],
+);
 
 /** Append-only. Never update or delete rows. */
 export const events = sqliteTable(

@@ -16,7 +16,8 @@
     "db:generate": "drizzle-kit generate",
     "seed": "tsx scripts/seed.ts",
     "doctor": "tsx scripts/doctor.ts",
-    "spike:token": "tsx scripts/spike-token.ts"
+    "spike:token": "tsx scripts/spike-token.ts",
+    "demo:verify": "tsx scripts/demo-verify.ts"
   },
   "license": "MIT",
   "type": "module",

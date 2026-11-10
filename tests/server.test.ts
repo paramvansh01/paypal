@@ -27,3 +27,26 @@ describe("server", () => {
     expect(await res.text()).toContain("Kept");
   });
 });
+
+describe("GET /evidence/:hash", () => {
+  it("serves stored artifacts by hash and nothing else", async () => {
+    const { mkdtempSync } = await import("node:fs");
+    const { tmpdir } = await import("node:os");
+    const { join } = await import("node:path");
+    const { EvidenceStore } = await import("../src/verifier/evidence-store.js");
+    const store = new EvidenceStore(mkdtempSync(join(tmpdir(), "kept-srv-ev-")));
+    const { sha256 } = store.put('{"a":1}', "json");
+    const srv = createApp(loadConfig({}), { evidence: store }).listen(0);
+    await new Promise((r) => srv.once("listening", r));
+    const b = `http://127.0.0.1:${(srv.address() as AddressInfo).port}`;
+    try {
+      const ok = await fetch(`${b}/evidence/${sha256}.json`);
+      expect(ok.status).toBe(200);
+      expect(await ok.text()).toBe('{"a":1}');
+      expect((await fetch(`${b}/evidence/${"0".repeat(64)}.json`)).status).toBe(404);
+      expect((await fetch(`${b}/evidence/..%2f..%2fetc%2fpasswd`)).status).toBe(404);
+    } finally {
+      await new Promise((r) => srv.close(r));
+    }
+  });
+});

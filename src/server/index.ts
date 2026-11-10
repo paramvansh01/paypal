@@ -1,6 +1,7 @@
 import { ConfigError, loadConfig } from "../config.js";
 import { KeyError, loadKeyring } from "../qaps/keys.js";
 import { verifierIds } from "../qaps/protocol.js";
+import { EvidenceStore } from "../verifier/evidence-store.js";
 import { createApp } from "./app.js";
 
 try {
@@ -9,7 +10,7 @@ try {
     dir: config.verifier.keysDir,
     json: config.verifier.keysJson,
   });
-  const app = createApp(config, { keyring });
+  const app = createApp(config, { keyring, evidence: new EvidenceStore(config.verifier.evidenceDir) });
   app.listen(config.app.port, () => {
     console.log(`Kept listening on ${config.app.publicBaseUrl} (port ${config.app.port})`);
   });

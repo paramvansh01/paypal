@@ -2,6 +2,7 @@ import { fileURLToPath } from "node:url";
 import express, { type Express } from "express";
 import type { Config } from "../config.js";
 import { publicKeyring, type Keyring } from "../qaps/keys.js";
+import type { EvidenceStore } from "../verifier/evidence-store.js";
 
 const PLACEHOLDER_PAGE = `<!doctype html>
 <html lang="en">
@@ -26,6 +27,7 @@ export const DEMO_SITES_DIR = fileURLToPath(new URL("../../demo/sites/", import.
 
 export interface AppDeps {
   keyring?: Keyring;
+  evidence?: EvidenceStore;
 }
 
 export function createApp(config: Config, deps: AppDeps = {}): Express {
@@ -44,6 +46,17 @@ export function createApp(config: Config, deps: AppDeps = {}): Express {
       return;
     }
     res.set("Cache-Control", "public, max-age=300").json(publicKeyring(deps.keyring));
+  });
+
+  // Evidence artifacts, addressed by their SHA-256 (the same hash the verifiers signed).
+  app.get("/evidence/:file", (req, res) => {
+    const m = req.params.file.match(/^([0-9a-f]{64})\.(png|json)$/);
+    const data = m && deps.evidence?.get(m[1]!, m[2] as "png" | "json");
+    if (!data) {
+      res.status(404).json({ error: "no such artifact" });
+      return;
+    }
+    res.set("Cache-Control", "public, max-age=31536000, immutable").type(m![2]!).send(data);
   });
 
   // Demo deliverables (good / flawed / sneaky) and the tiny API their contact form posts to.
