@@ -15,10 +15,22 @@ import { openDb, type Db } from "../src/db/client.js";
 import { checklistItems, jobs } from "../src/db/schema.js";
 import { DEMO_CLIENT_ID, seedDemoParties } from "../src/db/seed.js";
 
+const KEY = (c: string) => c.repeat(43);
+const quorum = () => ({
+  n: 3,
+  k: 2,
+  verifiers: [
+    { id: "verifier-a", public_key: KEY("A") },
+    { id: "verifier-b", public_key: KEY("B") },
+    { id: "verifier-c", public_key: KEY("C") },
+  ],
+});
+
 const sample = (): ChecklistInput => ({
   version: 1,
   currency: "USD",
   total_cents: 10000,
+  quorum: quorum(),
   milestones: [
     {
       title: "Landing page live",
@@ -105,6 +117,8 @@ describe("checklistHash", () => {
     ["item order", (c) => c.milestones[0]!.items.reverse()],
     ["amounts (same total)", (c) => ((c.milestones[0]!.amount_cents = 3000), (c.milestones[1]!.amount_cents = 4000))],
     ["the currency", (c) => (c.currency = "EUR")],
+    ["a verifier key", (c) => (c.quorum.verifiers[1]!.public_key = KEY("D"))],
+    ["verifier order", (c) => c.quorum.verifiers.reverse()],
   ];
   it.each(edits)("changes when %s changes", (_name, edit) => {
     const c = sample();
@@ -135,6 +149,25 @@ describe("parseChecklist", () => {
     expect(() => parseChecklist(d)).toThrow(/must start with \//);
   });
 
+  it("validates the quorum policy", () => {
+    const bad = (edit: (q: ReturnType<typeof quorum>) => void) => {
+      const c = sample();
+      const q = quorum();
+      edit(q);
+      c.quorum = q;
+      return () => parseChecklist(c);
+    };
+    expect(bad((q) => (q.k = 1))).toThrow(/more than half/); // 1-of-3 lets one verifier decide
+    expect(bad((q) => (q.k = 4))).toThrow(/more than half of n and at most n/);
+    expect(bad((q) => q.verifiers.pop())).toThrow(/exactly n=3/);
+    expect(bad((q) => (q.verifiers[1]!.id = "verifier-a"))).toThrow(/unique/);
+    expect(bad((q) => (q.verifiers[1]!.public_key = KEY("A")))).toThrow(/own key/);
+    expect(bad((q) => (q.verifiers[0]!.public_key = "short"))).toThrow();
+    const noQuorum = sample() as Partial<ChecklistInput>;
+    delete noQuorum.quorum;
+    expect(() => parseChecklist(noQuorum)).toThrow();
+  });
+
   it("needs a success signal for form checks", () => {
     const c = sample();
     (c.milestones[1]!.items[0]!.params as { success: object }).success = {};
@@ -157,6 +190,7 @@ describe("checklist storage and freezing", () => {
   it("round-trips through the database with the same hash", () => {
     saveChecklist(db, jobId, sample());
     expect(checklistHash(loadChecklist(db, jobId))).toBe(checklistHash(sample()));
+    expect(loadChecklist(db, jobId).quorum).toEqual(quorum());
     expect(db.select().from(jobs).get()?.totalAmountCents).toBe(10000);
   });
 
@@ -165,8 +199,10 @@ describe("checklist storage and freezing", () => {
     const smaller = sample();
     smaller.milestones = smaller.milestones.slice(0, 1);
     smaller.total_cents = 4000;
+    smaller.quorum.k = 3;
     saveChecklist(db, jobId, smaller);
     expect(loadChecklist(db, jobId).milestones).toHaveLength(1);
+    expect(loadChecklist(db, jobId).quorum.k).toBe(3);
     expect(db.select().from(checklistItems).all()).toHaveLength(2);
   });
 
@@ -178,6 +214,16 @@ describe("checklist storage and freezing", () => {
     expect(db.select().from(jobs).get()).toMatchObject({ status: "AGREED", checklistHash: hash });
     expect(() => saveChecklist(db, jobId, sample())).toThrow(ChecklistFrozenError);
     expect(assertChecklistIntact(db, jobId)).toBe(hash);
+  });
+
+  it("detects a verifier key swapped behind the API's back", () => {
+    saveChecklist(db, jobId, sample());
+    transition(db, jobId, "CHECKLIST_PROPOSED", { actor: "ai" });
+    agreeChecklist(db, jobId, "both");
+    const q = quorum();
+    q.verifiers[2]!.public_key = KEY("Z");
+    db.update(jobs).set({ quorum: q }).where(eq(jobs.id, jobId)).run();
+    expect(() => assertChecklistIntact(db, jobId)).toThrow(ChecklistTamperedError);
   });
 
   it("detects a checklist changed behind the API's back", () => {

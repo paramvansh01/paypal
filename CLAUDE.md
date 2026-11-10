@@ -12,9 +12,9 @@
 
 ```
 Phase:              PQ — QAPS core, pure parts first (P1 PayPal spikes are blocked on H2–H3)
-Next action:        TQ.3
+Next action:        T2.5 (TQ.4–TQ.6 need the browser work in P3; T2.5 settlement can now be built on milestoneOutcomes + validateCertificate)
 Active session:     Param — 2026-11-10T16:55+05:30
-Last updated:       2026-11-10 (TQ.2 done)
+Last updated:       2026-11-10 (TQ.3 done)
 Payment rail:       UNDECIDED (decided by the spike in P1)
 Blockers:           H1 (no GitHub remote yet; commits are local in ~/kept on Param's Mac). H2–H3 (PayPal sandbox app + accounts) block T1.1 proof and T1.2–T1.6. H4 (Anthropic + KERNEL keys) blocks live verifier and judge runs.
 Hosted demo URL:    —
@@ -49,7 +49,7 @@ Pitch line: **"Money that checks the work before it moves."**
 Our own settlement algorithm. Five real parts, each one demoable:
 
 1. **Fingerprinted contracts.** A plain-language brief becomes a typed contract, serialised as canonical JSON (RFC 8785) and fingerprinted with SHA-256. The fingerprint is stamped on the PayPal order (`custom_id`) and can never change after both parties agree.
-2. **k-of-n verifier quorum.** n independent verifiers (default 3, threshold k = 2) check the work in different browser environments (KERNEL cloud Chromium, local Chromium, local WebKit) with different Claude models as judges. An item's verdict counts only when k verifiers agree; otherwise a human decides. Idea taken from Byzantine-fault-tolerant consensus: one faulty or compromised verifier can't pay out or block a payment.
+2. **k-of-n verifier quorum.** n independent verifiers (default 3, threshold k = 2) check the work in different browser environments (KERNEL cloud Chromium, local Chromium, local WebKit) with different Claude models as judges. An item's verdict counts only when k verifiers agree; otherwise a human decides. Idea taken from Byzantine-fault-tolerant consensus: one faulty or compromised verifier can't pay out or refund on its own, and leaving reports out of a certificate can never flip a verdict (proven by exhaustive tests).
 3. **Prompt-injection tripwires.** Deliverables are hostile input. A deterministic DOM scanner finds hidden or instruction-like text aimed at AI evaluators, and every AI judge call carries a secret canary token that proves its output wasn't hijacked. A caught injection fails the item and flags the worker.
 4. **Merkle-signed evidence.** Each verifier hashes every result and artifact (screenshots, measurements) into a Merkle tree (RFC 6962 construction), signs the root with its own Ed25519 key, and the quorum certificate bundles those signatures. Change one byte of evidence and verification fails.
 5. **Settlement that verifies, not trusts.** Before PayPal moves a cent, `settle` re-checks the contract fingerprint, every signature and the quorum maths. Then it releases passed milestones and refunds failed ones on PayPal, idempotently.
@@ -349,8 +349,13 @@ Each verifier runs the whole checklist independently against the same deliverabl
 Quorum rule, per item (pure function, `src/qaps/quorum.ts`):
 1. `client_approval` items: final verdict comes only from the client's decision.
 2. If at least k verifiers report `injection: true` → final `fail`, reason `injection`, and the job gets an `INJECTION_DETECTED` event naming the worker.
-3. Else if at least k verifiers report the same verdict v in {pass, fail} → final v, reason `quorum`.
-4. Otherwise (including 1..k-1 injection flags, errors, or a split) → `needs_client`, reason `no_quorum`. The client decides with the evidence of all verifiers in front of them.
+3. Otherwise an injection flag counts as a fail vote. At least k clean `pass` votes → `pass`; at least k fail votes → `fail` (reason `quorum`).
+4. Otherwise (errors, `needs_client` votes, a split) → `needs_client`, reason `no_quorum`. The client decides with the evidence of all verifiers in front of them.
+
+Proven properties (exhaustive tests for 2-of-3 and 3-of-5, `tests/quorum.test.ts`):
+- **Omission safety:** a certificate built from any subset of at least k reports can never flip pass↔fail compared with all reports; at worst an item goes to the client. So whoever assembles the certificate cannot steer the money by dropping reports. (An earlier draft made a lone injection flag a veto; the exhaustive test showed dropping that one report turned the veto into a pass, so flags became votes.)
+- **Fault tolerance:** if k honest verifiers agree, the other n − k cannot change the outcome to the opposite verdict.
+- Lone injection flags are outvoted but stay in the evidence, the receipt and an `INJECTION_SUSPECTED` event.
 
 Quorum certificate: `{ v: "kept-qaps/1", type: "quorum_certificate", job_id, contract_hash, deliverable_url, k, n, attestations: [...], items: [{ m, i, verdict, reason }] }`.
 It is **valid** only if: at least k attestations, from distinct registered verifier IDs, each with a valid Ed25519 signature, all naming the same `contract_hash` and `deliverable_url`; every attested Merkle root recomputes from the stored leaves; and `items` equals the quorum rule applied to those leaves. `settle` runs this full validation itself; it never trusts a stored "VERIFIED" flag.
@@ -516,7 +521,7 @@ The pure parts (TQ.1–TQ.3) need no keys or network and come first. Every task 
 
 - [x] **TQ.1** Merkle tree per 6.11 (`src/qaps/merkle.ts`): root, inclusion proof, proof verification. Test against published Certificate Transparency test vectors (fetch them; do not trust memory) and property tests (every leaf's proof verifies; any changed leaf, index or sibling fails).
 - [x] **TQ.2** Verifier identity (`src/qaps/keys.ts`, `src/qaps/attestation.ts`): Ed25519 key generation/loading per 6.11, key fingerprints, attestation build/sign/verify over canonical JSON, `/.well-known/kept/verifiers.json`. Tests: valid signature verifies; any changed field, wrong key or truncated signature fails.
-- [ ] **TQ.3** Quorum rule and certificate (`src/qaps/quorum.ts`): the rule in 6.9 as a pure function, certificate build, full validation. Tests: every verdict combination for n = 3, k = 2; k − 1 signatures; duplicate verifier; unknown key; mismatched contract hash or URL; forged item verdicts; root that does not match leaves.
+- [x] **TQ.3** Quorum rule and certificate (`src/qaps/quorum.ts`): the rule in 6.9 as a pure function, certificate build, full validation. Tests: every verdict combination for n = 3, k = 2; k − 1 signatures; duplicate verifier; unknown key; mismatched contract hash or URL; forged item verdicts; root that does not match leaves.
 - [ ] **TQ.4** Tripwire DOM scanner per 6.10, with tests on hand-written hostile pages (each hiding technique) and a benign corpus (measure and record the false-positive rate).
 - [ ] **TQ.5** Canary integrity for `llm_judgement` per 6.10 (with T3.6). Tests use recorded responses, including a hijacked one.
 - [ ] **TQ.6** Quorum orchestrator: runs the n verifiers in parallel (different browsers and judges), stores leaves, roots, attestations, builds and stores the certificate, writes final verdicts, moves the job to `VERIFIED` (or keeps items `needs_client`). Live verdicts stream to the UI.
@@ -621,6 +626,8 @@ Format: `YYYY-MM-DD — <name> — decision — reason`
 - 2026-11-10 — Param — Pivot: reframed Kept as Proof-Carrying Payments with our own settlement algorithm, QAPS (fingerprinted contracts, k-of-n verifier quorum, prompt-injection tripwires, Merkle-signed evidence, verify-before-settle). Added phase PQ and sections 6.9–6.12 — a new payment primitive is a stronger story than a feature, and every part is buildable and demoable.
 - 2026-11-10 — Param — Cut from the earlier blueprint doc (Kept_Protocol_Technical_Architecture_Blueprint.docx): zk-SNARKs, on-chain/decentralised claims, OpenCV, WhatsApp bot, LangGraph/OpenAI Swarm, Elastic, Channel3, Bryntum, APIMatic — not buildable to a real, working standard in the time, and section 4 requires the project to work as described. Rule: every pitch term must map to code a judge can open.
 - 2026-11-10 — Param — Crypto uses only Node's built-in `crypto` (SHA-256, Ed25519) and WebCrypto in the browser; Merkle hashing follows RFC 6962 exactly — standard constructions are easier to defend to judges than anything custom.
+- 2026-11-10 — Param — The contract now contains the quorum policy (`quorum: {n, k, verifiers: [{id, public_key}]}`), stored in `jobs.quorum`. Trust for every receipt is anchored in the contract hash on the PayPal order, not in a key list we host; `/.well-known/kept/verifiers.json` is only a convenience for building new contracts.
+- 2026-11-10 — Param — Injection flags are fail votes, not vetoes (see 6.9). The exhaustive subset test caught that a veto could be bypassed by leaving the flagging report out of the certificate.
 - 2026-11-10 — Param — Config enforces 2k > n for the quorum (default 2-of-3), so two conflicting quorums can never both form. Verifier keys are Ed25519 JWKs in `data/keys/<id>.jwk.json` (mode 0600, created on first boot) or `VERIFIER_KEYS_JSON`; the loader re-derives the public key instead of trusting the stored one. Attestations are signed over canonical JSON and carry the key fingerprint; `leaf_count` is signed because an RFC 6962 root alone does not pin the tree size.
 
 ---

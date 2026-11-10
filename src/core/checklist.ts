@@ -9,6 +9,10 @@ import { z } from "zod";
  *
  * Checks address the deliverable by `path`, relative to the URL the worker
  * submits later, because the checklist is agreed before delivery exists.
+ *
+ * The contract also fixes the verifier quorum: how many verifiers (n), how many
+ * must agree (k), and their exact public keys. Because the contract hash is on
+ * the PayPal order, nobody can swap verifiers or lower k after money is locked.
  */
 
 const path = z
@@ -91,12 +95,44 @@ export const Milestone = z.strictObject({
   items: z.array(ChecklistItem).min(1).max(20),
 });
 
+export const QuorumPolicy = z
+  .strictObject({
+    n: z.number().int().min(1).max(7),
+    k: z.number().int().min(1).max(7),
+    verifiers: z
+      .array(
+        z.strictObject({
+          id: z.string().regex(/^[a-z0-9-]{1,64}$/),
+          /** Raw Ed25519 public key, base64url (43 characters). */
+          public_key: z.string().regex(/^[A-Za-z0-9_-]{43}$/),
+        }),
+      )
+      .min(1)
+      .max(7),
+  })
+  .superRefine((q, ctx) => {
+    if (q.k > q.n || 2 * q.k <= q.n) {
+      ctx.addIssue({ code: "custom", path: ["k"], message: `k must be more than half of n and at most n (n=${q.n}, k=${q.k})` });
+    }
+    if (q.verifiers.length !== q.n) {
+      ctx.addIssue({ code: "custom", path: ["verifiers"], message: `needs exactly n=${q.n} verifiers` });
+    }
+    if (new Set(q.verifiers.map((v) => v.id)).size !== q.verifiers.length) {
+      ctx.addIssue({ code: "custom", path: ["verifiers"], message: "verifier ids must be unique" });
+    }
+    if (new Set(q.verifiers.map((v) => v.public_key)).size !== q.verifiers.length) {
+      ctx.addIssue({ code: "custom", path: ["verifiers"], message: "each verifier needs its own key" });
+    }
+  });
+export type QuorumPolicy = z.output<typeof QuorumPolicy>;
+
 export const Checklist = z
   .strictObject({
     version: z.literal(1),
     currency: z.string().regex(/^[A-Z]{3}$/),
     total_cents: z.number().int().positive(),
     milestones: z.array(Milestone).min(1).max(10),
+    quorum: QuorumPolicy,
   })
   .superRefine((c, ctx) => {
     const sum = c.milestones.reduce((s, m) => s + m.amount_cents, 0);
@@ -113,6 +149,11 @@ export type Checklist = z.output<typeof Checklist>;
 export type ChecklistInput = z.input<typeof Checklist>;
 export type ChecklistItem = z.output<typeof ChecklistItem>;
 export type CheckType = ChecklistItem["check_type"];
+
+/** Items in canonical order, with their milestone (m) and item (i) positions. */
+export function contractItems(c: Checklist): { m: number; i: number; item: ChecklistItem }[] {
+  return c.milestones.flatMap((ms, m) => ms.items.map((item, i) => ({ m, i, item })));
+}
 
 /** Validates and normalises (fills defaults), so equal contracts always hash equally. */
 export function parseChecklist(input: unknown): Checklist {

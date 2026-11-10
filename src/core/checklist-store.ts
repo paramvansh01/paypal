@@ -67,7 +67,7 @@ export function saveChecklist(db: Db, jobId: string, input: unknown): Checklist 
       });
     });
     tx.update(jobs)
-      .set({ currency: checklist.currency, totalAmountCents: checklist.total_cents })
+      .set({ currency: checklist.currency, totalAmountCents: checklist.total_cents, quorum: checklist.quorum })
       .where(eq(jobs.id, jobId))
       .run();
   });
@@ -91,6 +91,7 @@ export function loadChecklist(db: Db, jobId: string): Checklist {
     version: 1,
     currency: job.currency,
     total_cents: job.totalAmountCents,
+    quorum: job.quorum,
     milestones: ms.map((m) => ({
       title: m.title,
       amount_cents: m.amountCents,

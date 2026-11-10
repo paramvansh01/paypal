@@ -7,6 +7,13 @@ import { index, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqli
  * Timestamps are ISO 8601 strings in UTC.
  */
 
+/** Stored copy of the contract's quorum block; validated by the checklist schema on load. */
+export interface QuorumPolicyJson {
+  n: number;
+  k: number;
+  verifiers: { id: string; public_key: string }[];
+}
+
 const createdAt = () =>
   text("created_at")
     .notNull()
@@ -55,6 +62,8 @@ export const jobs = sqliteTable(
     currency: text("currency").notNull().default("USD"),
     totalAmountCents: integer("total_amount_cents").notNull(),
     checklistHash: text("checklist_hash"),
+    /** Quorum policy from the contract (k, n, verifier keys). Part of the hashed contract. */
+    quorum: text("quorum", { mode: "json" }).$type<QuorumPolicyJson>(),
     paypalOrderId: text("paypal_order_id"),
     rail: text("rail", { enum: ["delayed_disbursement", "auth_capture"] }).notNull(),
     createdAt: createdAt(),
