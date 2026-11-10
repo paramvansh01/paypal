@@ -14,7 +14,7 @@ import { createDeliveredDemoJob } from "../src/demo/job.js";
 import { loadKeyring } from "../src/qaps/keys.js";
 import { verifierIds } from "../src/qaps/protocol.js";
 import { buildCertificate, type VerifierReport } from "../src/qaps/quorum.js";
-import { assembleReceipt, verifyReceipt, type ProofReceipt, type ReceiptInput } from "../src/qaps/receipt.js";
+import { assembleReceipt, ISSUER_ID, sealReceipt, verifyReceipt, type ProofReceipt, type ReceiptInput } from "../src/qaps/receipt.js";
 import { createApp } from "../src/server/app.js";
 import { panelBrowsers } from "../src/verifier/browser.js";
 import { EvidenceStore } from "../src/verifier/evidence-store.js";
@@ -24,6 +24,7 @@ import { DELIVERABLE, FLAWED_VOTES, ISSUED, JOB, leavesByVerifier, MockRail, qap
 // ---------- pure: assemble + verify ----------
 
 const fx = qapsFixture();
+const issuer = loadKeyring([ISSUER_ID], { dir: mkdtempSync(join(tmpdir(), "kept-issuer-")) }).get(ISSUER_ID)!;
 
 function input(reports: VerifierReport[], over: Partial<ReceiptInput> = {}): ReceiptInput {
   const { certificate } = buildCertificate({ job_id: JOB, contract: fx.contractInput(), deliverable_url: DELIVERABLE, reports, issued_at: ISSUED });
@@ -43,6 +44,7 @@ function input(reports: VerifierReport[], over: Partial<ReceiptInput> = {}): Rec
     events: [{ type: "VERIFIED", actor: "kept", payload: { certificate_hash: "x" }, at: ISSUED }],
     publicBaseUrl: "https://kept.example/",
     issuedAt: ISSUED,
+    issuer,
     ...over,
   };
 }
@@ -62,6 +64,8 @@ describe("Proof Receipt: assembly", () => {
     expect(v.ok).toBe(true);
     expect(v.checks.map((c) => c.check)).toEqual([
       "format",
+      "seal_sections",
+      "seal_signature",
       "contract_hash",
       "certificate",
       "certificate_hash",
@@ -96,41 +100,70 @@ describe("Proof Receipt: assembly", () => {
 describe("Proof Receipt: tampering is caught and named", () => {
   const good = assembleReceipt(input(flawed()));
 
-  it.each<[string, (r: ProofReceipt) => void, string, RegExp]>([
-    ["a leaf's verdict", (r) => ((r.leaves["verifier-b"]![2] as { verdict: string }).verdict = "pass"), "certificate", /verifier-b: evidence does not match the signed Merkle root/],
-    ["a leaf's summary", (r) => ((r.leaves["verifier-a"]![0] as { summary: string }).summary += "!"), "certificate", /verifier-a: evidence does not match/],
-    ["a milestone amount in the contract", (r) => ((r.contract as { milestones: { amount_cents: number }[] }).milestones[0]!.amount_cents += 1), "contract", /./],
-    ["the contract hash", (r) => (r.contract_hash = "f".repeat(64)), "contract_hash", /receipt says f{64}/],
-    ["a certificate verdict", (r) => ((r.certificate as { items: { verdict: string }[] }).items[2]!.verdict = "pass"), "certificate", /verdicts do not follow/],
+  // [what, mutation, check that must fail, its detail, top-level section the seal must name]
+  it.each<[string, (r: ProofReceipt) => void, string, RegExp, string]>([
+    ["a leaf's verdict", (r) => ((r.leaves["verifier-b"]![2] as { verdict: string }).verdict = "pass"), "certificate", /verifier-b: evidence does not match the signed Merkle root/, "leaves"],
+    ["a leaf's summary", (r) => ((r.leaves["verifier-a"]![0] as { summary: string }).summary += "!"), "certificate", /verifier-a: evidence does not match/, "leaves"],
+    ["a milestone amount in the contract", (r) => ((r.contract as { milestones: { amount_cents: number }[] }).milestones[0]!.amount_cents += 1), "contract", /./, "contract"],
+    ["the contract hash", (r) => (r.contract_hash = "f".repeat(64)), "contract_hash", /receipt says f{64}/, "contract_hash"],
+    ["a certificate verdict", (r) => ((r.certificate as { items: { verdict: string }[] }).items[2]!.verdict = "pass"), "certificate", /verdicts do not follow/, "certificate"],
     ["an attestation signature", (r) => {
       const att = (r.certificate as { attestations: { signature: string }[] }).attestations[0]!;
       att.signature = (att.signature[0] === "A" ? "B" : "A") + att.signature.slice(1);
-    }, "certificate", /signature by verifier-a does not verify/],
-    ["the certificate hash", (r) => (r.certificate_hash = "0".repeat(64)), "certificate_hash", /receipt says 0{64}/],
-    ["the job ID", (r) => (r.job.id = "job_other"), "certificate", /different job/],
-    ["the deliverable URL", (r) => (r.job.deliverable_url = "https://evil.example/"), "certificate", /different deliverable/],
-    ["a milestone outcome", (r) => (r.milestones[1]!.outcome = "passed"), "milestones", /milestone 1 says passed, the verdicts say failed/],
-    ["a milestone title", (r) => (r.milestones[0]!.title = "Other"), "milestones", /does not match the contract/],
-    ["a refunded milestone marked released", (r) => (r.milestones[1]!.status = "released"), "milestones", /was released but its outcome is failed/],
-    ["a client decision on a quorum item", (r) => r.client_decisions.push({ m: 1, i: 0, decision: "approve", actor: "x", note: null, decided_at: ISSUED }), "client_decisions", /decided by the quorum/],
-    ["a flipped client decision", (r) => (r.client_decisions[0]!.decision = "reject"), "milestones", /milestone 2 says passed, the verdicts say failed/],
-    ["a dropped artifact", (r) => r.artifacts.pop(), "artifacts", /does not match the hashes/],
-    ["an artifact URL", (r) => (r.artifacts[0]!.url = "https://evil.example/x.png"), "artifacts", /URL/],
-    ["an unknown top-level field", (r) => ((r as Record<string, unknown>).extra = 1), "format", /malformed/],
-  ])("changing %s", (_what, mutate, check, detail) => {
+    }, "certificate", /signature by verifier-a does not verify/, "certificate"],
+    ["the certificate hash", (r) => (r.certificate_hash = "0".repeat(64)), "certificate_hash", /receipt says 0{64}/, "certificate_hash"],
+    ["the job ID", (r) => (r.job.id = "job_other"), "certificate", /different job/, "job"],
+    ["the deliverable URL", (r) => (r.job.deliverable_url = "https://evil.example/"), "certificate", /different deliverable/, "job"],
+    ["a milestone outcome", (r) => (r.milestones[1]!.outcome = "passed"), "milestones", /milestone 1 says passed, the verdicts say failed/, "milestones"],
+    ["a milestone title", (r) => (r.milestones[0]!.title = "Other"), "milestones", /does not match the contract/, "milestones"],
+    ["a refunded milestone marked released", (r) => (r.milestones[1]!.status = "released"), "milestones", /was released but its outcome is failed/, "milestones"],
+    ["a client decision on a quorum item", (r) => r.client_decisions.push({ m: 1, i: 0, decision: "approve", actor: "x", note: null, decided_at: ISSUED }), "client_decisions", /decided by the quorum/, "client_decisions"],
+    ["a flipped client decision", (r) => (r.client_decisions[0]!.decision = "reject"), "milestones", /milestone 2 says passed, the verdicts say failed/, "client_decisions"],
+    ["a dropped artifact", (r) => r.artifacts.pop(), "artifacts", /does not match the hashes/, "artifacts"],
+    ["an artifact URL", (r) => (r.artifacts[0]!.url = "https://evil.example/x.png"), "artifacts", /URL/, "artifacts"],
+    ["an unknown top-level field", (r) => ((r as Record<string, unknown>).extra = 1), "format", /malformed/, ""],
+  ])("changing %s", (_what, mutate, check, detail, section) => {
     const r = clone(good);
     mutate(r);
     const bad = failed(r);
-    expect(bad.length).toBeGreaterThan(0);
-    expect(bad[0]!.check).toBe(check);
-    expect(bad[0]!.detail).toMatch(detail);
+    const specific = bad.find((c) => c.check === check);
+    expect(specific, `expected the ${check} check to fail; failed: ${JSON.stringify(bad)}`).toBeDefined();
+    expect(specific!.detail).toMatch(detail);
+    if (section) expect(bad.find((c) => c.check === "seal_sections")?.detail).toMatch(new RegExp(`\\b${section}\\b`));
+  });
+
+  it("changing Kept's own records (PayPal IDs, events, status, time) breaks the seal and names the section", () => {
+    const cases: [(r: ProofReceipt) => void, string][] = [
+      [(r) => (r.paypal.order_id = "ORDER-2"), "paypal"],
+      [(r) => (r.milestones[0]!.paypal.release_id = "PP-X"), "milestones"],
+      [(r) => r.events.push({ type: "X", actor: "x", payload: null, at: ISSUED }), "events"],
+      [(r) => (r.job.status = "DISPUTED"), "job"],
+      [(r) => (r.issued_at = "2027-01-01T00:00:00.000Z"), "issued_at"],
+    ];
+    for (const [mutate, section] of cases) {
+      const r = clone(good);
+      mutate(r);
+      expect(failed(r).map((c) => [c.check, c.detail])).toEqual([["seal_sections", `changed since sealing: ${section}`]]);
+    }
+  });
+
+  it("a forged seal over edited records passes on its own, but not against the published issuer key", () => {
+    const forger = loadKeyring([ISSUER_ID], { dir: mkdtempSync(join(tmpdir(), "kept-forger-")) }).get(ISSUER_ID)!;
+    const r = clone(good);
+    r.paypal.order_id = "ORDER-FORGED";
+    const { seal: _seal, ...body } = r;
+    const forged = sealReceipt(body, forger);
+    expect(verifyReceipt(forged).ok).toBe(true);
+    const v = verifyReceipt(forged, { issuerFingerprint: issuer.public.fingerprint });
+    expect(v.checks.filter((c) => !c.ok).map((c) => c.check)).toEqual(["issuer_key"]);
+    expect(verifyReceipt(good, { issuerFingerprint: issuer.public.fingerprint }).ok).toBe(true);
   });
 
   it("leaves from a verifier that did not attest are rejected", () => {
     const [a, b, c] = flawed();
     const r = clone(assembleReceipt(input([a!, b!])));
     r.leaves["verifier-c"] = c!.leaves;
-    expect(failed(r).map((x) => x.check)).toEqual(["leaves"]);
+    expect(failed(r).map((x) => x.check)).toEqual(["seal_sections", "leaves"]);
   });
 
   it("never throws on garbage", () => {
@@ -152,7 +185,7 @@ describe("GET /jobs/:id/receipt (local browsers, mock PayPal)", () => {
   beforeAll(async () => {
     db = openDb(":memory:");
     seedDemoParties(db, loadConfig({ DEMO_CLIENT_EMAIL: "c@example.com", DEMO_WORKER_EMAIL: "w@example.com" }));
-    server = createApp(loadConfig({ PUBLIC_BASE_URL: "https://kept.example" }), { db, keyring, evidence: store }).listen(0, "127.0.0.1");
+    server = createApp(loadConfig({ PUBLIC_BASE_URL: "https://kept.example" }), { db, keyring, issuer, evidence: store }).listen(0, "127.0.0.1");
     await new Promise((r) => server.once("listening", r));
     origin = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
   });
@@ -164,7 +197,7 @@ describe("GET /jobs/:id/receipt (local browsers, mock PayPal)", () => {
     const res = await fetch(`${origin}/jobs/${jobId}/receipt`);
     expect(res.status).toBe(409);
     expect((await res.json()).error).toMatch(/no quorum certificate/);
-    expect(() => getReceipt(db, jobId, { publicBaseUrl: origin })).toThrow(ReceiptUnavailableError);
+    expect(() => getReceipt(db, jobId, { publicBaseUrl: origin, issuer })).toThrow(ReceiptUnavailableError);
   });
 
   it("flawed site: the receipt carries the proof and the PayPal IDs, and verifies offline", async () => {

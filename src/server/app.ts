@@ -4,7 +4,7 @@ import type { Config } from "../config.js";
 import { getReceipt, ReceiptUnavailableError } from "../core/receipt-store.js";
 import { JobNotFoundError } from "../core/state.js";
 import type { Db } from "../db/client.js";
-import { publicKeyring, type Keyring } from "../qaps/keys.js";
+import { publicKeyring, type Keyring, type VerifierKey } from "../qaps/keys.js";
 import type { EvidenceStore } from "../verifier/evidence-store.js";
 
 const PLACEHOLDER_PAGE = `<!doctype html>
@@ -31,6 +31,8 @@ export const DEMO_SITES_DIR = fileURLToPath(new URL("../../demo/sites/", import.
 export interface AppDeps {
   db?: Db;
   keyring?: Keyring;
+  /** Kept's receipt-sealing key (ISSUER_ID). */
+  issuer?: VerifierKey;
   evidence?: EvidenceStore;
 }
 
@@ -52,6 +54,15 @@ export function createApp(config: Config, deps: AppDeps = {}): Express {
     res.set("Cache-Control", "public, max-age=300").json(publicKeyring(deps.keyring));
   });
 
+  // Kept's receipt-sealing key, so receipt holders can check who sealed a receipt.
+  app.get("/.well-known/kept/issuer.json", (_req, res) => {
+    if (!deps.issuer) {
+      res.status(503).json({ error: "issuer key not loaded" });
+      return;
+    }
+    res.set("Cache-Control", "public, max-age=300").json({ protocol: "kept-qaps/1", issuer: deps.issuer.public });
+  });
+
   // Evidence artifacts, addressed by their SHA-256 (the same hash the verifiers signed).
   app.get("/evidence/:file", (req, res) => {
     const m = req.params.file.match(/^([0-9a-f]{64})\.(png|json)$/);
@@ -66,12 +77,12 @@ export function createApp(config: Config, deps: AppDeps = {}): Express {
   // Proof Receipt (section 6.12): everything needed to check a payout offline.
   // `?download=1` makes browsers save it as a file (the receipt page's download button links here).
   app.get("/jobs/:id/receipt", (req, res) => {
-    if (!deps.db) {
-      res.status(503).json({ error: "database not available" });
+    if (!deps.db || !deps.issuer) {
+      res.status(503).json({ error: "database or issuer key not available" });
       return;
     }
     try {
-      const receipt = getReceipt(deps.db, req.params.id, { publicBaseUrl: config.app.publicBaseUrl });
+      const receipt = getReceipt(deps.db, req.params.id, { publicBaseUrl: config.app.publicBaseUrl, issuer: deps.issuer });
       if (req.query.download !== undefined) {
         const safeId = req.params.id.replace(/[^A-Za-z0-9_-]/g, "_");
         res.attachment(`kept-receipt-${safeId}.json`);

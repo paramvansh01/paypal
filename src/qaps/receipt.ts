@@ -1,5 +1,7 @@
 import { z } from "zod";
+import { createHash } from "node:crypto";
 import { canonicalJson, checklistHash, parseChecklist, type Checklist } from "../core/checklist.js";
+import { fingerprintOf, verifySignature, type VerifierKey } from "./keys.js";
 import { LeafRecord } from "./leaf.js";
 import { HEX64, PROTOCOL } from "./protocol.js";
 import {
@@ -20,11 +22,18 @@ import {
  * the client's decisions, the milestone outcomes with their PayPal IDs, and the
  * job's event timeline.
  *
- * Trust is anchored in the contract hash, which is also on the PayPal order
- * (`custom_id`). Everything else either recomputes from the contract or is
- * signed by a key the contract lists. The receipt itself is not signed: if any
- * checked byte changes, `verifyReceipt` says what broke.
+ * Two kinds of content, two anchors:
+ * - Proven: contract, certificate, leaves, artifacts, decisions vs verdicts,
+ *   milestone outcomes. Anchored in the contract hash (also on the PayPal order,
+ *   `custom_id`) and the verifier keys the contract lists.
+ * - Reported: Kept's own records (job status, PayPal IDs, events, issue time).
+ *   Covered by the issuer seal: Kept's `kept-issuer` key signs one SHA-256 per
+ *   top-level section, so any edit fails and names the section. The seal proves
+ *   only that the holder of that key issued the receipt; compare its fingerprint
+ *   with `/.well-known/kept/issuer.json` on the Kept server.
  */
+
+export const ISSUER_ID = "kept-issuer";
 
 const hex64 = z.string().regex(HEX64);
 
@@ -94,6 +103,17 @@ export const ProofReceipt = z.strictObject({
   }),
   events: z.array(ReceiptEvent),
   issued_at: z.iso.datetime(),
+  seal: z.strictObject({
+    v: z.literal(PROTOCOL),
+    type: z.literal("receipt_seal"),
+    issuer: z.string().min(1).max(64),
+    public_key: z.string().min(1).max(100),
+    key_fingerprint: hex64,
+    /** SHA-256 of the canonical JSON of every other top-level section. */
+    sections: z.record(z.string(), hex64),
+    /** Ed25519 over canonicalJson(seal without `signature`), base64url. */
+    signature: z.string().min(1).max(200),
+  }),
 });
 export type ProofReceipt = z.infer<typeof ProofReceipt>;
 
@@ -109,6 +129,31 @@ export interface ReceiptInput {
   /** Base for artifact URLs, e.g. "https://kept.example" → https://kept.example/evidence/<sha>.png */
   publicBaseUrl: string;
   issuedAt: string;
+  /** Kept's receipt-issuing key (ISSUER_ID). */
+  issuer: VerifierKey;
+}
+
+export type UnsealedReceipt = Omit<ProofReceipt, "seal">;
+
+export function sectionHashes(body: Record<string, unknown>): Record<string, string> {
+  return Object.fromEntries(
+    Object.keys(body)
+      .filter((k) => k !== "seal")
+      .sort()
+      .map((k) => [k, createHash("sha256").update(canonicalJson(body[k]), "utf8").digest("hex")]),
+  );
+}
+
+export function sealReceipt(body: UnsealedReceipt, key: VerifierKey): ProofReceipt {
+  const unsigned = {
+    v: PROTOCOL as typeof PROTOCOL,
+    type: "receipt_seal" as const,
+    issuer: key.id,
+    public_key: key.public.public_key,
+    key_fingerprint: key.public.fingerprint,
+    sections: sectionHashes(body as Record<string, unknown>),
+  };
+  return { ...body, seal: { ...unsigned, signature: key.sign(Buffer.from(canonicalJson(unsigned), "utf8")) } };
 }
 
 /** Artifact name in a leaf → file kind in the evidence store. */
@@ -146,7 +191,7 @@ export function assembleReceipt(input: ReceiptInput): ProofReceipt {
   const outcomes = milestoneOutcomes(contract, cert.items, decisions);
   if (input.milestones.length !== contract.milestones.length) throw new Error("milestone rows do not match the contract");
 
-  return ProofReceipt.parse({
+  const body: UnsealedReceipt = ProofReceipt.omit({ seal: true }).parse({
     v: PROTOCOL,
     type: "proof_receipt",
     job: input.job,
@@ -162,6 +207,7 @@ export function assembleReceipt(input: ReceiptInput): ProofReceipt {
     events: input.events,
     issued_at: input.issuedAt,
   });
+  return sealReceipt(body, input.issuer);
 }
 
 export interface ReceiptCheck {
@@ -181,7 +227,7 @@ export interface ReceiptVerification {
  * comparing the contract hash with PayPal's order are online steps, left to the
  * receipt verifier tools (TQ.8).
  */
-export function verifyReceipt(input: unknown): ReceiptVerification {
+export function verifyReceipt(input: unknown, opts: { issuerFingerprint?: string } = {}): ReceiptVerification {
   const checks: ReceiptCheck[] = [];
   const add = (check: string, ok: boolean, detail: string) => checks.push({ check, ok, detail });
   const done = () => ({ ok: checks.every((c) => c.ok), checks });
@@ -194,6 +240,23 @@ export function verifyReceipt(input: unknown): ReceiptVerification {
   }
   add("format", true, "receipt has the kept-qaps/1 proof_receipt shape");
   const r = parsed.data;
+
+  // Seal first: it covers every section, including Kept's own records.
+  const { seal } = r;
+  const recomputedSections = sectionHashes(r as unknown as Record<string, unknown>);
+  const changed = [...new Set([...Object.keys(recomputedSections), ...Object.keys(seal.sections)])]
+    .sort()
+    .filter((k) => recomputedSections[k] !== seal.sections[k]);
+  add("seal_sections", changed.length === 0, changed.length ? `changed since sealing: ${changed.join(", ")}` : "every section matches the sealed hashes");
+  const { signature, ...unsigned } = seal;
+  const sigOk =
+    fingerprintOf(seal.public_key) === seal.key_fingerprint &&
+    verifySignature({ id: seal.issuer, alg: "Ed25519", public_key: seal.public_key, fingerprint: seal.key_fingerprint }, Buffer.from(canonicalJson(unsigned), "utf8"), signature);
+  add("seal_signature", sigOk, sigOk ? `sealed by ${seal.issuer}, key ${seal.key_fingerprint}` : "seal signature does not verify");
+  if (opts.issuerFingerprint !== undefined) {
+    const ok = opts.issuerFingerprint === seal.key_fingerprint;
+    add("issuer_key", ok, ok ? "issuer key matches the published Kept key" : `issuer key ${seal.key_fingerprint} is not the published Kept key ${opts.issuerFingerprint}`);
+  }
 
   let contract: Checklist;
   try {

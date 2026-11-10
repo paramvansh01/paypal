@@ -12,10 +12,10 @@
 
 ```
 Phase:              PQ — QAPS core (the verifier quorum works end to end locally; PayPal spikes still blocked on H2–H3)
-Next action:        TQ.8 — receipt verifiers: `npm run verify-receipt <file|url>` and zero-dependency `tools/verify-receipt.mjs`, built on `verifyReceipt` in src/qaps/receipt.ts, plus artifact fetching and a tamper test over every field.
-Suggested order:    TQ.8 → T2.6 → TQ.10 → T3.9 → T4.1 → T4.4 → T5.1 (all need no keys). With H2–H3 done, jump to T1.1 proof + P1 spikes. With H4, T3.1/T3.2/T3.6/TQ.5.
+Next action:        T2.6 — REST API for the full lifecycle (wire `recoverInterruptedVerifications()` on server start too).
+Suggested order:    T2.6 → TQ.10 → T3.9 → T4.1 → T4.4 → T5.1 (all need no keys). With H2–H3 done, jump to T1.1 proof + P1 spikes. With H4, T3.1/T3.2/T3.6/TQ.5.
 Active session:     Aashman — 2026-11-10T13:38Z
-Last updated:       2026-11-10 (Aashman: T3.8, TQ.7 done)
+Last updated:       2026-11-10 (Aashman: T3.8, TQ.7, TQ.8 done)
 Payment rail:       UNDECIDED (decided by the spike in P1)
 Blockers:           H2–H3 (PayPal sandbox) block T1.1 proof and all of P1, T2.3, T2.4, TQ.9 binding. H4 (Anthropic + KERNEL keys) blocks T3.1/T3.2/T3.6/TQ.5 live runs and the KERNEL browser path.
 Hosted demo URL:    —
@@ -378,6 +378,7 @@ Two independent mechanisms:
 
 - **Proof Receipt** (`GET /jobs/:id/receipt`, MCP `get_receipt`): contract + contract hash, quorum certificate, all attestations and leaves, artifact hashes, client decisions, PayPal IDs (order, captures, releases, refunds) and the event timeline.
 - **Binding to PayPal:** the contract hash goes into the order's `custom_id` before funding. At settlement, the quorum certificate hash goes onto the capture or refund (`invoice_id` or `note_to_payer` — VERIFY which fields each call accepts and their length limits). So PayPal's own records point back to the proof.
+- **Issuer seal:** Kept's own records in the receipt (job status, PayPal IDs, events, issue time) are not covered by verifier signatures, so Kept seals the receipt: its `kept-issuer` Ed25519 key signs one SHA-256 per top-level section. Any edit fails and names the section. The seal key is published at `/.well-known/kept/issuer.json`; a seal only means something when its fingerprint matches that.
 - **Anyone can verify:** `npm run verify-receipt <file|url>` and the zero-dependency `tools/verify-receipt.mjs` (plain Node, no npm install) recompute every hash, Merkle root and signature, re-run the quorum rule, and print a clear pass/fail per check. The receipt page has the same check in the browser via WebCrypto. Changing any single byte must make it fail and say where.
 - Trust note (say this honestly): signatures prove which verifier key signed what. Trusting those keys means trusting the published key list (`/.well-known/kept/verifiers.json`), which in production would be run by independent operators.
 
@@ -527,7 +528,7 @@ The pure parts (TQ.1–TQ.3) need no keys or network and come first. Every task 
 - [ ] **TQ.5** Canary integrity for `llm_judgement` per 6.10 (with T3.6). Tests use recorded responses, including a hijacked one.
 - [x] **TQ.6** Quorum orchestrator: runs the n verifiers in parallel (different browsers and judges), stores leaves, roots, attestations, builds and stores the certificate, writes final verdicts, moves the job to `VERIFIED` (or keeps items `needs_client`). Live verdicts stream to the UI.
 - [x] **TQ.7** Proof Receipt per 6.12: assembly, `GET /jobs/:id/receipt`, MCP `get_receipt`, download button. (Assembly, `verifyReceipt`, `getReceipt()` and the route with `?download=1` are done; the MCP tool is wired in T4.1 and the button in T3.9, both calling the same code.)
-- [ ] **TQ.8** Receipt verifiers: `npm run verify-receipt` and zero-dependency `tools/verify-receipt.mjs`. Tamper tests: flipping any single byte of a sample receipt fails with a message naming what broke.
+- [x] **TQ.8** Receipt verifiers: `npm run verify-receipt` and zero-dependency `tools/verify-receipt.mjs`. Tamper tests: flipping any single byte of a sample receipt fails with a message naming what broke.
   *Done when:* a tamper test over every field of a real receipt passes, and the standalone script runs with plain `node` in an empty folder.
 - [~] **TQ.9** (Param — validate-before-settle done in T2.5; PayPal field binding waits for the rail spike) Settlement verifies, not trusts: `settle` validates the certificate from scratch before any PayPal call, and binds the certificate hash to the PayPal capture/refund (VERIFY fields).
 - [ ] **TQ.10** `docs/PROTOCOL.md`: Kept Protocol v1 — contract format and hashing, attestation and certificate formats, quorum rule, receipt format and verification steps — complete enough for someone else to implement a compatible verifier.
@@ -643,6 +644,9 @@ Format: `YYYY-MM-DD — <name> — decision — reason`
 - 2026-11-10 — Aashman — Local WebKit fetches every request on the Node side (`route.fetch()` through the egress proxy) and the browser gets only the final response. Reason: on macOS 26, WebKit connects to loopback directly and ignores the proxy, and routes never see redirect hops, so a deliverable could redirect the WebKit verifier into 127.0.0.1 (reproduced, including via HTTPS where the proxy cannot read the 302). Each hop is now its own checked CONNECT tunnel. Cost: after a path-changing redirect, directory-relative links resolve against the original URL (root-relative and absolute links are fine). Playwright cannot fulfill a route with a 3xx, so hop-by-hop handoff to the browser is not possible. Chromium is unchanged.
 - 2026-11-10 — Aashman — Egress proxy also checks plain-HTTP redirect `Location`s (403 block page if refused), and a CONNECT tunnel to host:port is allowed when either the http or https origin is allowed (Playwright's fetcher tunnels plain http). Verifier keys load from `d` alone (PKCS#8) so the stored-`x` check behaves the same on Node 26, which rejects a mismatch inside `createPrivateKey`.
 - 2026-11-10 — Aashman — Proof Receipt format (`src/qaps/receipt.ts`, `kept-qaps/1`, type `proof_receipt`): job {id, title, status, rail, deliverable_url}, contract + contract_hash, certificate + certificate_hash, leaves of the attesting verifiers only (a non-attesting verifier's leaves cannot be checked, so they are rejected), artifact index {sha256, kind, url} (kind from the leaf's artifact name: `screenshot*` → png, else json), client decisions, milestones {m, title, amount_cents, outcome, status, paypal ids}, `paypal.order_id`, events, issued_at. The receipt is not signed: trust comes from the contract hash on the PayPal order and the verifier signatures inside. `verifyReceipt` (pure, never throws) returns named checks: format, contract_hash, certificate, certificate_hash, leaves, artifacts, client_decisions, milestones. It also rejects a milestone marked released/refunded against its outcome. Fetching artifacts and comparing with PayPal's `custom_id` are online steps for TQ.8. The server now opens the database (`createApp(config, { db, … })`).
+- 2026-11-10 — Aashman — Receipts carry an issuer seal (`seal`: per-section SHA-256s signed by the `kept-issuer` key, loaded like verifier keys from `VERIFIER_KEYS_DIR`/`VERIFIER_KEYS_JSON` — on Render the JSON must include `kept-issuer`). Reason: TQ.8 requires that changing any field fails, and PayPal IDs, events and status are not signed by any verifier. Honest limit: someone can re-seal an edited receipt with their own key; verifiers compare the seal key with `/.well-known/kept/issuer.json` (automatic when verifying by URL, `--issuer <fingerprint>` for files). The proven parts never depend on the seal.
+- 2026-11-10 — Aashman — Signatures and public keys are accepted only in canonical base64url. The every-field tamper test found that changing the last character of a signature (4 unused bits) still verified, in both verifiers and in attestation checks.
+- 2026-11-10 — Aashman — Two independent receipt verifiers: `npm run verify-receipt` (Kept's TypeScript `verifyReceipt`) and `tools/verify-receipt.mjs` (zero dependencies, also importable). They report the same check names; tests require both to reject every single-field change of a real receipt and to agree on malformed input. The standalone one hashes the contract as given, so receipts must carry the normalised contract (they do). Verifying by URL also fetches every artifact and checks its bytes; for files use `--artifacts`.
 
 ---
 
@@ -692,4 +696,11 @@ Done:      TQ.7 — receipt assembly and offline verification (`src/qaps/receipt
 In flight: nothing
 Learned:   Status moves are `STATUS_CHANGED` events with `{from, to}` in the payload, not one event type per status. Express writes `attachment; filename=…` without quotes when the name needs none.
 Next:      TQ.8
+Blockers:  H2–H3 (PayPal), H4 (Anthropic + KERNEL keys), H5 (`.env` on Aashman's Mac).
+
+### 2026-11-10 21:45 IST — Aashman
+Done:      TQ.8 — `npm run verify-receipt <file|url>` and zero-dependency `tools/verify-receipt.mjs` (runs with plain node in an empty folder; URL mode checks the published issuer key and downloads every artifact). Issuer seal added to receipts. Every-field tamper test on a real receipt (flawed site, 3 verifiers, settled): each of several hundred single-field changes fails in both verifiers and the seal names the section. Fixed non-canonical base64url signatures being accepted. 557 tests green.
+In flight: nothing
+Learned:   Node decodes base64url leniently (unused trailing bits are ignored), so never compare encoded signatures loosely — re-encode and compare. A test server that needs its own URL in config must listen before the app is built.
+Next:      T2.6
 Blockers:  H2–H3 (PayPal), H4 (Anthropic + KERNEL keys), H5 (`.env` on Aashman's Mac).

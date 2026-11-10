@@ -1,6 +1,7 @@
 import { asc, eq } from "drizzle-orm";
 import type { Db } from "../db/client.js";
 import { clientDecisions, events, jobs, milestones } from "../db/schema.js";
+import type { VerifierKey } from "../qaps/keys.js";
 import { QuorumCertificate } from "../qaps/quorum.js";
 import { assembleReceipt, type ProofReceipt } from "../qaps/receipt.js";
 import { loadChecklist } from "./checklist-store.js";
@@ -19,7 +20,7 @@ export class ReceiptUnavailableError extends Error {
  * Shared by `GET /jobs/:id/receipt` and the MCP `get_receipt` tool (T4.1).
  * Throws JobNotFoundError or ReceiptUnavailableError.
  */
-export function getReceipt(db: Db, jobId: string, opts: { publicBaseUrl: string; now?: () => Date }): ProofReceipt {
+export function getReceipt(db: Db, jobId: string, opts: { publicBaseUrl: string; issuer: VerifierKey; now?: () => Date }): ProofReceipt {
   const job = db.select().from(jobs).where(eq(jobs.id, jobId)).get();
   if (!job) throw new JobNotFoundError(jobId);
   const proof = loadProofFromDb(db, jobId);
@@ -46,5 +47,6 @@ export function getReceipt(db: Db, jobId: string, opts: { publicBaseUrl: string;
     events: timeline.map((e) => ({ type: e.type, actor: e.actor, payload: e.payload ?? null, at: e.createdAt })),
     publicBaseUrl: opts.publicBaseUrl,
     issuedAt: (opts.now?.() ?? new Date()).toISOString(),
+    issuer: opts.issuer,
   });
 }

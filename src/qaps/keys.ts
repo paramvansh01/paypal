@@ -91,6 +91,8 @@ export function verifySignature(key: VerifierPublicKey, message: Uint8Array, sig
     const sig = Buffer.from(signatureB64url, "base64url");
     const raw = Buffer.from(key.public_key, "base64url");
     if (sig.length !== 64 || raw.length !== 32) return false;
+    // Only the canonical encoding: otherwise unused trailing bits give one signature many spellings.
+    if (sig.toString("base64url") !== signatureB64url || raw.toString("base64url") !== key.public_key) return false;
     const publicKey = createPublicKey({ key: { kty: "OKP", crv: "Ed25519", x: key.public_key }, format: "jwk" });
     return verify(null, message, publicKey, sig);
   } catch {

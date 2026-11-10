@@ -79,6 +79,20 @@ describe("verifier keys", () => {
     expect(k.public.fingerprint).toMatch(/^[0-9a-f]{64}$/);
   });
 
+  it("accepts only the canonical base64url spelling of a signature", () => {
+    const a = VerifierKey.generate("verifier-a");
+    const msg = Buffer.from("hello");
+    const sig = a.sign(msg);
+    // The last of 86 characters carries 4 unused bits, so other spellings decode to the same bytes.
+    const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
+    const twins = [...alphabet]
+      .map((c) => sig.slice(0, -1) + c)
+      .filter((s) => s !== sig && Buffer.from(s, "base64url").equals(Buffer.from(sig, "base64url")));
+    expect(twins.length).toBeGreaterThan(0);
+    expect(verifySignature(a.public, msg, sig)).toBe(true);
+    for (const t of twins) expect(verifySignature(a.public, msg, t)).toBe(false);
+  });
+
   it("raw signatures verify only with the right key and message", () => {
     const a = VerifierKey.generate("verifier-a");
     const b = VerifierKey.generate("verifier-b");
