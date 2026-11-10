@@ -12,9 +12,9 @@
 
 ```
 Phase:              PQ — QAPS core, pure parts first (P1 PayPal spikes are blocked on H2–H3)
-Next action:        T3.3 (then T3.4, T3.8, TQ.4 — all runnable with local browsers, no keys needed)
+Next action:        T3.8 (demo sites first, so T3.4 checks can be tested against them), then T3.4, TQ.4
 Active session:     Param — 2026-11-10T16:55+05:30
-Last updated:       2026-11-10 (T2.5 done)
+Last updated:       2026-11-10 (T3.3 done)
 Payment rail:       UNDECIDED (decided by the spike in P1)
 Blockers:           H1 (no GitHub remote yet; commits are local in ~/kept on Param's Mac). H2–H3 (PayPal sandbox app + accounts) block T1.1 proof and T1.2–T1.6. H4 (Anthropic + KERNEL keys) blocks live verifier and judge runs.
 Hosted demo URL:    —
@@ -506,7 +506,7 @@ Goal: learn in a few hours which rail works in our sandbox. Scripts live in `scr
 - [ ] **T3.1** LLM client wrapper with strict JSON output, retries and a recorded-response mode for tests.
 - [ ] **T3.2** Checklist generator: brief + budget → milestones with amounts and items using the check types in 6.7. Anything not objectively checkable becomes `client_approval`. Amounts must sum to the budget.
   *Done when:* five varied sample briefs produce valid checklists.
-- [ ] **T3.3** Browser providers behind one interface: KERNEL session over CDP, local Chromium, local WebKit. VERIFY the KERNEL SDK and replay API at https://kernel.sh/docs first.
+- [x] **T3.3** Browser providers behind one interface: KERNEL session over CDP, local Chromium, local WebKit. VERIFY the KERNEL SDK and replay API at https://kernel.sh/docs first.
 - [ ] **T3.4** Implement the deterministic checks in 6.7 with unit tests against the demo sites.
 - [ ] **T3.5** Evidence capture: screenshot per item, measured values, and the KERNEL replay link when available. Stored and served by the app.
 - [ ] **T3.6** `llm_judgement` check with the safety rules in 6.7 and the canary integrity check in 6.10.
@@ -629,6 +629,8 @@ Format: `YYYY-MM-DD — <name> — decision — reason`
 - 2026-11-10 — Param — The contract now contains the quorum policy (`quorum: {n, k, verifiers: [{id, public_key}]}`), stored in `jobs.quorum`. Trust for every receipt is anchored in the contract hash on the PayPal order, not in a key list we host; `/.well-known/kept/verifiers.json` is only a convenience for building new contracts.
 - 2026-11-10 — Param — Injection flags are fail votes, not vetoes (see 6.9). The exhaustive subset test caught that a veto could be bypassed by leaving the flagging report out of the certificate.
 - 2026-11-10 — Param — Settlement (`src/core/settlement.ts`) takes a `ProofLoader` so it can be tested before the verifier tables exist; it serialises calls per job in-process, persists passed/failed before calling PayPal, and refuses (rather than guesses) if an interrupted run recorded a different outcome. The rail interface gained an optional `finalize()` (auth_capture voids the rest of the hold there). tsconfig target is ES2023.
+- 2026-11-10 — Param — Local verifier browsers go through our own egress proxy (`src/verifier/egress-proxy.ts`) plus a route guard. Reason: Playwright routes only see the first URL of a redirect chain in Chromium, so a deliverable could redirect into 169.254.169.254; the test caught it. The proxy checks every hop, connects to the exact IP it checked (DNS rebinding fails), and Chromium is launched with `--proxy-bypass-list=<-loopback>` so localhost is checked too (tested for both engines).
+- 2026-11-10 — Param — verifier-a uses KERNEL only when the deliverable is publicly reachable (a cloud browser cannot reach localhost); otherwise it falls back to local Chromium and the signed attestation's `browser` field says so. KERNEL sessions are headful when a replay is wanted (replays need headful) and have a 300 s timeout. KERNEL provider is untested until a key exists (H4).
 - 2026-11-10 — Param — Config enforces 2k > n for the quorum (default 2-of-3), so two conflicting quorums can never both form. Verifier keys are Ed25519 JWKs in `data/keys/<id>.jwk.json` (mode 0600, created on first boot) or `VERIFIER_KEYS_JSON`; the loader re-derives the public key instead of trusting the stored one. Attestations are signed over canonical JSON and carry the key fingerprint; `leaf_count` is signed because an RFC 6962 root alone does not pin the tree size.
 
 ---
