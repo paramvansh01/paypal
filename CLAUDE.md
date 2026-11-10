@@ -14,7 +14,7 @@
 Phase:              PQ — QAPS core (the verifier quorum works end to end locally; PayPal spikes still blocked on H2–H3)
 Next action:        T3.8 — run `npm run demo:verify -- --runs 10` (~5 min). If all 30 runs match, mark T3.8 [x]; then TQ.7.
 Suggested order:    T3.8 → TQ.7 → TQ.8 → T2.6 → TQ.10 → T3.9 → T4.1 → T4.4 → T5.1 (all need no keys). With H2–H3 done, jump to T1.1 proof + P1 spikes. With H4, T3.1/T3.2/T3.6/TQ.5.
-Active session:     none
+Active session:     Aashman — 2026-11-10T13:38Z
 Last updated:       2026-11-10 (handoff after T3.5, T3.7, TQ.6)
 Payment rail:       UNDECIDED (decided by the spike in P1)
 Blockers:           H2–H3 (PayPal sandbox) block T1.1 proof and all of P1, T2.3, T2.4, TQ.9 binding. H4 (Anthropic + KERNEL keys) blocks T3.1/T3.2/T3.6/TQ.5 live runs and the KERNEL browser path.
