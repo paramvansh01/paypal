@@ -12,9 +12,9 @@
 
 ```
 Phase:              P0 — Setup
-Next action:        T0.4
+Next action:        T0.5
 Active session:     Param — 2026-11-10T16:55+05:30
-Last updated:       2026-11-10 (T0.3 done)
+Last updated:       2026-11-10 (T0.4 done)
 Payment rail:       UNDECIDED (decided by the spike in P1)
 Blockers:           H1 (no GitHub remote yet; commits are local in ~/kept on Param's Mac), H2–H5 before P1
 Hosted demo URL:    —
@@ -382,7 +382,7 @@ Priority tiers: **MUST** = needed for a valid, convincing submission. **SHOULD**
 - [x] **T0.2** Add `LICENSE` (MIT, team names from Live State) at the root.
   *Done when:* the file exists with standard MIT text.
 - [x] **T0.3** Add `.env.example` from section 8 and a typed config loader that fails with a clear message naming any missing key.
-- [ ] **T0.4** Express server with `/health`, serving a placeholder page.
+- [x] **T0.4** Express server with `/health`, serving a placeholder page.
   *Done when:* `npm run dev` starts and `/health` returns ok.
 - [ ] **T0.5** Database: Drizzle schema from 6.4, migration, and `npm run seed` creating the demo parties from env.
   *Done when:* seed runs twice without duplicating rows.
