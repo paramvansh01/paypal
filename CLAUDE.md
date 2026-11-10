@@ -12,9 +12,9 @@
 
 ```
 Phase:              PQ — QAPS core, pure parts first (P1 PayPal spikes are blocked on H2–H3)
-Next action:        T2.5 (TQ.4–TQ.6 need the browser work in P3; T2.5 settlement can now be built on milestoneOutcomes + validateCertificate)
+Next action:        T3.3 (then T3.4, T3.8, TQ.4 — all runnable with local browsers, no keys needed)
 Active session:     Param — 2026-11-10T16:55+05:30
-Last updated:       2026-11-10 (TQ.3 done)
+Last updated:       2026-11-10 (T2.5 done)
 Payment rail:       UNDECIDED (decided by the spike in P1)
 Blockers:           H1 (no GitHub remote yet; commits are local in ~/kept on Param's Mac). H2–H3 (PayPal sandbox app + accounts) block T1.1 proof and T1.2–T1.6. H4 (Anthropic + KERNEL keys) blocks live verifier and judge runs.
 Hosted demo URL:    —
@@ -495,7 +495,7 @@ Goal: learn in a few hours which rail works in our sandbox. Scripts live in `scr
 - [x] **T2.2** Checklist schema (Zod), canonical JSON, `sha256` hash, freeze on `AGREED`. Tests: same checklist gives the same hash regardless of key order; any edit changes it.
 - [ ] **T2.3** `PaymentRail` interface and the chosen implementation, built from the proven spike code. Includes `custom_id` = checklist hash.
 - [ ] **T2.4** The second rail implementation, at least to the level its spike reached.
-- [ ] **T2.5** Settlement logic: for a `VERIFIED` job, release passed milestones and refund failed ones, idempotently. Running `settle` twice must not move money twice. Tests with a mocked rail.
+- [x] **T2.5** Settlement logic: for a `VERIFIED` job, release passed milestones and refund failed ones, idempotently. Running `settle` twice must not move money twice. Tests with a mocked rail.
 - [ ] **T2.6** REST API for the full lifecycle (create job, accept, lock, confirm, submit, verify, approve item, settle, get job, list jobs, ledger).
 - [ ] **T2.7** Status reconciliation: `status()` reads truth back from PayPal and corrects local state. Webhook endpoint with signature verification for the hosted deployment.
 - [ ] **T2.8** End-to-end script `npm run e2e` against the sandbox: full happy path with a stubbed verifier, pausing for the human approval click.
@@ -528,7 +528,7 @@ The pure parts (TQ.1–TQ.3) need no keys or network and come first. Every task 
 - [ ] **TQ.7** Proof Receipt per 6.12: assembly, `GET /jobs/:id/receipt`, MCP `get_receipt`, download button.
 - [ ] **TQ.8** Receipt verifiers: `npm run verify-receipt` and zero-dependency `tools/verify-receipt.mjs`. Tamper tests: flipping any single byte of a sample receipt fails with a message naming what broke.
   *Done when:* a tamper test over every field of a real receipt passes, and the standalone script runs with plain `node` in an empty folder.
-- [ ] **TQ.9** Settlement verifies, not trusts: `settle` validates the certificate from scratch before any PayPal call, and binds the certificate hash to the PayPal capture/refund (VERIFY fields).
+- [~] **TQ.9** (Param — validate-before-settle done in T2.5; PayPal field binding waits for the rail spike) Settlement verifies, not trusts: `settle` validates the certificate from scratch before any PayPal call, and binds the certificate hash to the PayPal capture/refund (VERIFY fields).
 - [ ] **TQ.10** `docs/PROTOCOL.md`: Kept Protocol v1 — contract format and hashing, attestation and certificate formats, quorum rule, receipt format and verification steps — complete enough for someone else to implement a compatible verifier.
 - [ ] **TQ.11** Prior-art check: search for existing systems that combine conditional payment, AI verification, verifier quorums or signed evidence (escrow APIs, smart-contract oracles, agent payment protocols such as AP2/x402). Record findings in `docs/PRIOR_ART.md` and write the exact novelty sentence we are allowed to use.
 - [ ] **TQ.12** (SHOULD) Browser-side receipt verification on the receipt page with WebCrypto (replaces T6.3).
@@ -628,6 +628,7 @@ Format: `YYYY-MM-DD — <name> — decision — reason`
 - 2026-11-10 — Param — Crypto uses only Node's built-in `crypto` (SHA-256, Ed25519) and WebCrypto in the browser; Merkle hashing follows RFC 6962 exactly — standard constructions are easier to defend to judges than anything custom.
 - 2026-11-10 — Param — The contract now contains the quorum policy (`quorum: {n, k, verifiers: [{id, public_key}]}`), stored in `jobs.quorum`. Trust for every receipt is anchored in the contract hash on the PayPal order, not in a key list we host; `/.well-known/kept/verifiers.json` is only a convenience for building new contracts.
 - 2026-11-10 — Param — Injection flags are fail votes, not vetoes (see 6.9). The exhaustive subset test caught that a veto could be bypassed by leaving the flagging report out of the certificate.
+- 2026-11-10 — Param — Settlement (`src/core/settlement.ts`) takes a `ProofLoader` so it can be tested before the verifier tables exist; it serialises calls per job in-process, persists passed/failed before calling PayPal, and refuses (rather than guesses) if an interrupted run recorded a different outcome. The rail interface gained an optional `finalize()` (auth_capture voids the rest of the hold there). tsconfig target is ES2023.
 - 2026-11-10 — Param — Config enforces 2k > n for the quorum (default 2-of-3), so two conflicting quorums can never both form. Verifier keys are Ed25519 JWKs in `data/keys/<id>.jwk.json` (mode 0600, created on first boot) or `VERIFIER_KEYS_JSON`; the loader re-derives the public key instead of trusting the stored one. Attestations are signed over canonical JSON and carry the key fingerprint; `leaf_count` is signed because an RFC 6962 root alone does not pin the tree size.
 
 ---
