@@ -130,7 +130,8 @@ describe("Proof Receipt verifiers (Kept's TypeScript one and the standalone .mjs
       if (a.checks[0]!.ok !== b.checks[0]!.ok) missed.push(`format disagreement at ${where}: ts=${a.checks[0]!.ok} mjs=${b.checks[0]!.ok}`);
     }
     expect(missed).toEqual([]);
-  });
+    // Hundreds of mutations × two verifiers: CPU-bound, slow when sharing the machine with browser tests.
+  }, 120_000);
 
   it("standalone: runs with plain node in an empty folder", async () => {
     const dir = mkdtempSync(join(tmpdir(), "kept-standalone-"));

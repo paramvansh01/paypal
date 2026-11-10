@@ -30,6 +30,23 @@ const PLACEHOLDER_PAGE = `<!doctype html>
 </html>`;
 
 export const DEMO_SITES_DIR = fileURLToPath(new URL("../../demo/sites/", import.meta.url));
+export const REPORT_DIR = fileURLToPath(new URL("../../web/report/", import.meta.url));
+
+/**
+ * The report shows text that came from hostile deliverables. It is rendered
+ * with textContent only, and this policy is the second fence: no inline script,
+ * no third-party anything, images and fetches from this origin only.
+ */
+const REPORT_CSP = [
+  "default-src 'none'",
+  "script-src 'self'",
+  "style-src 'self'",
+  "img-src 'self'",
+  "connect-src 'self'",
+  "base-uri 'none'",
+  "form-action 'none'",
+  "frame-ancestors 'none'",
+].join("; ");
 
 export interface AppDeps {
   db?: Db;
@@ -100,6 +117,16 @@ export function createApp(config: Config, deps: AppDeps = {}): Express {
       else if (err instanceof ReceiptUnavailableError) res.status(409).json({ error: err.message });
       else throw err;
     }
+  });
+
+  // Evidence report (T3.9): a page that renders the job's Proof Receipt.
+  app.use("/assets/report", (_req, res, next) => {
+    res.set("X-Content-Type-Options", "nosniff");
+    next();
+  }, express.static(REPORT_DIR, { index: false, maxAge: 0 }));
+  app.get("/jobs/:id/report", (_req, res) => {
+    res.set({ "Content-Security-Policy": REPORT_CSP, "X-Content-Type-Options": "nosniff", "Referrer-Policy": "no-referrer", "Cache-Control": "no-store" });
+    res.sendFile("index.html", { root: REPORT_DIR });
   });
 
   // The job lifecycle API (T2.6).

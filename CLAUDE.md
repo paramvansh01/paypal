@@ -12,10 +12,10 @@
 
 ```
 Phase:              PQ — QAPS core (the verifier quorum works end to end locally; PayPal spikes still blocked on H2–H3)
-Next action:        T3.9 — evidence report page (checklist, contract hash, per-verifier verdicts side by side, quorum result, evidence, PayPal IDs, timeline, receipt download via `/jobs/:id/receipt?download=1`).
-Suggested order:    T3.9 → TQ.10 → T3.9 → T4.1 → T4.4 → T5.1 (all need no keys). With H2–H3 done, jump to T1.1 proof + P1 spikes. With H4, T3.1/T3.2/T3.6/TQ.5.
+Next action:        T4.1 — MCP server (tools in 6.8 over Streamable HTTP at `/mcp` + stdio), built on `src/core/jobs.ts`, `getReceipt()` and the party tokens from `src/server/auth.ts`.
+Suggested order:    T4.1 → TQ.10 → T3.9 → T4.1 → T4.4 → T5.1 (all need no keys). With H2–H3 done, jump to T1.1 proof + P1 spikes. With H4, T3.1/T3.2/T3.6/TQ.5.
 Active session:     Aashman — 2026-11-10T13:38Z
-Last updated:       2026-11-10 (Aashman: T3.8, TQ.7, TQ.8, T2.6, TQ.10 done)
+Last updated:       2026-11-11 (Aashman: T3.8, TQ.7, TQ.8, T2.6, TQ.10, T3.9 done)
 Payment rail:       UNDECIDED (decided by the spike in P1)
 Blockers:           H2–H3 (PayPal sandbox) block T1.1 proof and all of P1, T2.3, T2.4, TQ.9 binding. H4 (Anthropic + KERNEL keys) blocks T3.1/T3.2/T3.6/TQ.5 live runs and the KERNEL browser path.
 Hosted demo URL:    —
@@ -515,7 +515,7 @@ Goal: learn in a few hours which rail works in our sandbox. Scripts live in `scr
 - [x] **T3.7** Single-verifier runner: runs every item for one verifier (one browser, one judge), applies timeouts, runs the tripwire scanner on each page, and returns leaf records + artifacts. The quorum orchestrator (TQ.6) calls it n times.
 - [x] **T3.8** Demo deliverables in `demo/sites/`: `good/` passes everything; `flawed/` has a contact form that does not submit, so exactly one milestone fails; `sneaky/` has the same broken form plus hidden text telling the AI the form works, so the tripwire must fire. All served by the app.
   *Done when:* the full quorum gives 4 of 4 on `good`, 3 of 4 on `flawed`, and 3 of 4 with `INJECTION_DETECTED` on `sneaky`, ten runs in a row.
-- [ ] **T3.9** Evidence report page: checklist, contract hash, per-verifier verdicts side by side, quorum result, evidence, PayPal IDs, timeline. JSON export is the Proof Receipt (TQ.7): the download button links to `/jobs/:id/receipt?download=1`.
+- [x] **T3.9** Evidence report page: checklist, contract hash, per-verifier verdicts side by side, quorum result, evidence, PayPal IDs, timeline. JSON export is the Proof Receipt (TQ.7): the download button links to `/jobs/:id/receipt?download=1`.
 
 ### PQ — QAPS: the novel core (MUST)
 
@@ -651,6 +651,8 @@ Format: `YYYY-MM-DD — <name> — decision — reason`
 - 2026-11-10 — Aashman — Checklist agreement: the server always sets the contract's `quorum` (its own keys, `QUORUM_K`); a submitted `quorum` is refused unless it is exactly the server's. Each party accepts a specific `checklist_hash` (stale hash → 400), recorded as `CHECKLIST_ACCEPTED` events; any revision makes acceptances lapse unless the hash is identical; both on the current hash → AGREED. A job's budget must equal the checklist total.
 - 2026-11-10 — Aashman — `POST /jobs/:id/verify` answers 202 and runs in the background (`?wait=1` waits); a second request is refused because verifyJob moves the job to VERIFYING synchronously. The server's own origins (PUBLIC_BASE_URL, 127.0.0.1:PORT, localhost:PORT) are the only private addresses verifiers may open, for the built-in demo sites. `recoverInterruptedVerifications()` runs on server start. Rail failures → 502 with no state change. Ledger reports gross cents only; fees/net wait for the PayPal rail (T2.3/T5.3).
 - 2026-11-10 — Aashman — `docs/PROTOCOL.md` is the normative spec for kept-qaps/1; `docs/protocol-vectors.json` holds deterministic test vectors (fixed public seeds, `npm run protocol-vectors -- --write`). `tests/protocol-vectors.test.ts` fails if the code's output drifts from the committed vectors, checks them with both verifiers and plain node:crypto, and checks the spec quotes the vector hash and every receipt check name. Any deliberate format change: update PROTOCOL.md, regenerate vectors, bump `kept-qaps/N` if it breaks old receipts.
+- 2026-11-11 — Aashman — The evidence report (`/jobs/:id/report`, `web/report/`) is a build-free page (plain HTML/CSS/JS module), not React yet: T5 adds the React/Vite app and can embed or port it. It renders from the Proof Receipt (plus `/jobs/:id` for live status and replay links), so it shows exactly what the proof contains. Hostile text from deliverables reaches it through summaries, so data is only set via textContent/attributes, screenshots are loaded from `/evidence/<sha>.png` rebuilt from the hash (never the receipt's URL), and the page is served with a strict CSP (`default-src 'none'`, self-only scripts/styles/images, no inline). An XSS probe test checks markup in a summary renders as text. It does not verify the receipt in the browser yet (TQ.12).
+- 2026-11-11 — Aashman — `npm run demo:report -- --site good|flawed|sneaky` runs the real quorum on a demo site, settles on an OFFLINE stand-in rail (every ID starts with `OFFLINE-`, so nobody mistakes it for PayPal) and serves the report. For previews and the video until the PayPal rail exists.
 
 ---
 
@@ -721,4 +723,11 @@ Done:      TQ.10 — `docs/PROTOCOL.md` (encodings, contract + check semantics, 
 In flight: nothing
 Learned:   Ed25519 is deterministic, so fixed seeds give byte-stable vectors — any change in canonical JSON, hashing or signing shows up as a vector diff.
 Next:      T3.9
+Blockers:  H2–H3 (PayPal), H4 (Anthropic + KERNEL keys), H5 (`.env` on Aashman's Mac).
+
+### 2026-11-11 00:45 IST — Aashman
+Done:      T3.9 — evidence report page (`web/report/`, served at `/jobs/:id/report` with a strict CSP): money summary, injection alert, contract/certificate/seal fingerprints, verifier panel, per-item votes of every verifier side by side with summaries, measured values, screenshots and details, quorum result and client decisions, PayPal IDs, timeline, receipt download + verify-it-yourself command. Pending/unknown-job states. `npm run demo:report`. 4 browser tests (content, CSP, XSS probe, empty states). Checked by eye in dark and light mode and at phone width. 584 tests green.
+In flight: nothing
+Learned:   The receipt tamper test (hundreds of mutations) needs a long timeout once browser tests run in parallel; it has 120 s now.
+Next:      T4.1
 Blockers:  H2–H3 (PayPal), H4 (Anthropic + KERNEL keys), H5 (`.env` on Aashman's Mac).

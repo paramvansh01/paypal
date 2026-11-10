@@ -20,7 +20,8 @@
     "demo:verify": "tsx scripts/demo-verify.ts",
     "verify-receipt": "tsx scripts/verify-receipt.ts",
     "party-token": "tsx scripts/party-token.ts",
-    "protocol-vectors": "tsx scripts/protocol-vectors.ts"
+    "protocol-vectors": "tsx scripts/protocol-vectors.ts",
+    "demo:report": "tsx scripts/demo-report.ts"
   },
   "license": "MIT",
   "type": "module",
