@@ -16,9 +16,9 @@
 // This file is deliberately independent of the Kept codebase: a second,
 // separate implementation of the protocol (docs/PROTOCOL.md, CLAUDE.md 6.9–6.12).
 
-import { createHash, createPublicKey, verify } from "node:crypto";
-import { readFileSync, realpathSync } from "node:fs";
-import { fileURLToPath } from "node:url";
+// Runs in Node (zero dependencies) and in browsers: Node modules are loaded only under Node.
+const IS_NODE = typeof process !== "undefined" && Boolean(process.versions?.node);
+const nodeCrypto = IS_NODE ? await import("node:crypto") : null;
 
 export const PROTOCOL = "kept-qaps/1";
 const HEX64 = /^[0-9a-f]{64}$/;
@@ -44,40 +44,95 @@ export function canonicalJson(value) {
   throw new TypeError(`unsupported type ${typeof value}`);
 }
 
-const sha256 = (...parts) => {
-  const h = createHash("sha256");
-  for (const p of parts) h.update(p);
-  return h.digest();
+// ---------- bytes ----------
+
+const utf8 = (str) => new TextEncoder().encode(str);
+const concat = (parts) => {
+  const out = new Uint8Array(parts.reduce((n, p) => n + p.length, 0));
+  let o = 0;
+  for (const p of parts) {
+    out.set(p, o);
+    o += p.length;
+  }
+  return out;
 };
-const sha256Hex = (s) => createHash("sha256").update(s, "utf8").digest("hex");
+const toHex = (b) => Array.from(b, (x) => x.toString(16).padStart(2, "0")).join("");
+const B64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
+/** base64url without padding; returns null on any character outside the alphabet. */
+function fromB64url(str) {
+  const out = [];
+  let buf = 0;
+  let bits = 0;
+  for (const ch of str) {
+    const v = B64.indexOf(ch);
+    if (v < 0) return null;
+    buf = (buf << 6) | v;
+    bits += 6;
+    if (bits >= 8) {
+      bits -= 8;
+      out.push((buf >> bits) & 0xff);
+    }
+  }
+  return new Uint8Array(out);
+}
+function toB64url(bytes) {
+  let s = "";
+  let buf = 0;
+  let bits = 0;
+  for (const b of bytes) {
+    buf = (buf << 8) | b;
+    bits += 8;
+    while (bits >= 6) {
+      bits -= 6;
+      s += B64[(buf >> bits) & 63];
+    }
+  }
+  if (bits > 0) s += B64[(buf << (6 - bits)) & 63];
+  return s;
+}
+
+// ---------- crypto provider ----------
+// Node uses node:crypto. A browser (no synchronous crypto) passes its own provider:
+// see verifyReceiptAsync below, which feeds this synchronous code from WebCrypto.
+
+const nodeProvider = nodeCrypto && {
+  sha256: (bytes) => new Uint8Array(nodeCrypto.createHash("sha256").update(bytes).digest()),
+  ed25519: (publicKeyB64url, messageBytes, sigBytes) => {
+    const key = nodeCrypto.createPublicKey({ key: { kty: "OKP", crv: "Ed25519", x: publicKeyB64url }, format: "jwk" });
+    return nodeCrypto.verify(null, messageBytes, key, sigBytes);
+  },
+};
+let provider = nodeProvider;
+
+const sha256 = (...parts) => provider.sha256(concat(parts));
+const sha256Hex = (str) => toHex(provider.sha256(utf8(str)));
 const canonicalHash = (v) => sha256Hex(canonicalJson(v));
 
 /** RFC 6962 Merkle tree hash over leaf byte strings. */
 export function merkleRoot(leafBytes) {
-  const leafHashes = leafBytes.map((b) => sha256(Buffer.from([0]), b));
+  const leafHashes = leafBytes.map((b) => sha256(Uint8Array.of(0), b));
   const root = (hs) => {
     if (hs.length === 0) return sha256();
     if (hs.length === 1) return hs[0];
     let k = 1;
     while (k * 2 < hs.length) k *= 2;
-    return sha256(Buffer.from([1]), root(hs.slice(0, k)), root(hs.slice(k)));
+    return sha256(Uint8Array.of(1), root(hs.slice(0, k)), root(hs.slice(k)));
   };
-  return root(leafHashes).toString("hex");
+  return toHex(root(leafHashes));
 }
 
-const fingerprintOf = (publicKeyB64url) => createHash("sha256").update(Buffer.from(publicKeyB64url, "base64url")).digest("hex");
+const fingerprintOf = (publicKeyB64url) => toHex(provider.sha256(fromB64url(publicKeyB64url) ?? new Uint8Array()));
 
 function ed25519Verify(publicKeyB64url, message, signatureB64url) {
   try {
     if (typeof publicKeyB64url !== "string" || typeof signatureB64url !== "string") return false;
     if (!B64URL.test(publicKeyB64url) || !B64URL.test(signatureB64url)) return false;
-    const sig = Buffer.from(signatureB64url, "base64url");
-    const raw = Buffer.from(publicKeyB64url, "base64url");
-    if (sig.length !== 64 || raw.length !== 32) return false;
+    const sig = fromB64url(signatureB64url);
+    const raw = fromB64url(publicKeyB64url);
+    if (!sig || !raw || sig.length !== 64 || raw.length !== 32) return false;
     // Only the canonical encoding: otherwise unused trailing bits give one signature many spellings.
-    if (sig.toString("base64url") !== signatureB64url || raw.toString("base64url") !== publicKeyB64url) return false;
-    const key = createPublicKey({ key: { kty: "OKP", crv: "Ed25519", x: publicKeyB64url }, format: "jwk" });
-    return verify(null, Buffer.from(message, "utf8"), key, sig);
+    if (toB64url(sig) !== signatureB64url || toB64url(raw) !== publicKeyB64url) return false;
+    return provider.ed25519(publicKeyB64url, utf8(message), sig);
   } catch {
     return false;
   }
@@ -273,7 +328,7 @@ function checkReport(att, leaves, contract, expected) {
     if (l.m !== m || l.i !== i) return `${who}: leaf ${idx} is for item ${l.m}.${l.i}, expected ${m}.${i}`;
     if (l.check_type !== item.check_type) return `${who}: leaf ${idx} has check type ${l.check_type}, contract says ${item.check_type}`;
   }
-  const root = merkleRoot(leaves.map((l) => Buffer.from(canonicalJson(l), "utf8")));
+  const root = merkleRoot(leaves.map((l) => utf8(canonicalJson(l))));
   if (root !== p.merkle_root) return `${who}: evidence does not match the signed Merkle root`;
   return null;
 }
@@ -451,7 +506,7 @@ export async function verifyArtifacts(receipt, fetchImpl = fetch) {
         bad.push(`${a.sha256}.${a.kind}: HTTP ${res.status}`);
         continue;
       }
-      const got = createHash("sha256").update(Buffer.from(await res.arrayBuffer())).digest("hex");
+      const got = toHex(new Uint8Array(await (globalThis.crypto?.subtle ?? nodeCrypto.webcrypto.subtle).digest("SHA-256", await res.arrayBuffer())));
       if (got !== a.sha256) bad.push(`${a.sha256}.${a.kind}: content hashes to ${got}`);
     } catch (err) {
       bad.push(`${a.sha256}.${a.kind}: ${err?.message ?? err}`);
@@ -459,6 +514,66 @@ export async function verifyArtifacts(receipt, fetchImpl = fetch) {
   }
   const n = receipt.artifacts?.length ?? 0;
   return { check: "artifact_bytes", ok: bad.length === 0, detail: bad.length ? `${bad.length} of ${n} failed: ${bad.slice(0, 3).join("; ")}` : `downloaded ${n} artifacts, every one hashes to its name` };
+}
+
+// ---------- browsers ----------
+
+/**
+ * verifyReceipt with WebCrypto (browsers have no synchronous hashing). The same
+ * synchronous checks run repeatedly: every hash or signature they ask for that
+ * is not known yet is answered with a placeholder and queued; the queue is
+ * computed with WebCrypto; then the checks run again. When a pass asks for
+ * nothing new, its result was computed from real values only, so it is final.
+ */
+export async function verifyReceiptAsync(receipt, opts = {}, subtle = globalThis.crypto.subtle) {
+  const hashes = new Map();
+  const sigs = new Map();
+  for (let pass = 0; pass < 64; pass++) {
+    const wantHash = new Map();
+    const wantSig = new Map();
+    const keyOf = (b) => toB64url(b);
+    const result = withProvider(
+      {
+        sha256: (bytes) => {
+          const k = keyOf(bytes);
+          if (hashes.has(k)) return hashes.get(k);
+          wantHash.set(k, bytes);
+          return new Uint8Array(32);
+        },
+        ed25519: (pub, msg, sig) => {
+          const k = `${pub}|${toB64url(sig)}|${keyOf(msg)}`;
+          if (sigs.has(k)) return sigs.get(k);
+          wantSig.set(k, { pub, msg, sig });
+          return false;
+        },
+      },
+      () => verifyReceipt(receipt, opts),
+    );
+    if (wantHash.size === 0 && wantSig.size === 0) return result;
+    await Promise.all([
+      ...[...wantHash].map(async ([k, b]) => hashes.set(k, new Uint8Array(await subtle.digest("SHA-256", b)))),
+      ...[...wantSig].map(async ([k, { pub, msg, sig }]) => {
+        try {
+          const key = await subtle.importKey("raw", fromB64url(pub), { name: "Ed25519" }, false, ["verify"]);
+          sigs.set(k, await subtle.verify({ name: "Ed25519" }, key, sig, msg));
+        } catch {
+          sigs.set(k, false);
+        }
+      }),
+    ]);
+  }
+  throw new Error("receipt verification did not settle");
+}
+
+/** Runs fn with a different crypto provider (synchronous). */
+export function withProvider(p, fn) {
+  const before = provider;
+  provider = p;
+  try {
+    return fn();
+  } finally {
+    provider = before;
+  }
 }
 
 // ---------- CLI ----------
@@ -491,7 +606,7 @@ async function main(argv) {
   const isUrlSource = /^https?:\/\//i.test(source);
   let receipt;
   try {
-    receipt = isUrlSource ? await (await fetch(source)).json() : JSON.parse(readFileSync(source, "utf8"));
+    receipt = isUrlSource ? await (await fetch(source)).json() : JSON.parse((await import("node:fs")).readFileSync(source, "utf8"));
   } catch (err) {
     console.error(`could not read ${source}: ${err?.message ?? err}`);
     return 1;
@@ -530,13 +645,16 @@ async function main(argv) {
   return result.ok ? 0 : 1;
 }
 
-const isMain = () => {
+const isMain = async () => {
+  if (!IS_NODE || !process.argv[1]) return false;
   try {
-    return Boolean(process.argv[1]) && realpathSync(process.argv[1]) === realpathSync(fileURLToPath(import.meta.url));
+    const { realpathSync } = await import("node:fs");
+    const { fileURLToPath } = await import("node:url");
+    return realpathSync(process.argv[1]) === realpathSync(fileURLToPath(import.meta.url));
   } catch {
     return false;
   }
 };
-if (isMain()) {
+if (await isMain()) {
   main(process.argv).then((code) => process.exit(code));
 }

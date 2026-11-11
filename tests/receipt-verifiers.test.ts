@@ -133,6 +133,23 @@ describe("Proof Receipt verifiers (Kept's TypeScript one and the standalone .mjs
     // Hundreds of mutations × two verifiers: CPU-bound, slow when sharing the machine with browser tests.
   }, 120_000);
 
+  it("the browser path (WebCrypto, verifyReceiptAsync) reaches exactly the same verdicts as the Node path", async () => {
+    const verifyAsync = (standalone as { verifyReceiptAsync: (r: unknown, o?: unknown, subtle?: SubtleCrypto) => Promise<ReturnType<Verify>> }).verifyReceiptAsync;
+    const same = async (r: unknown) => {
+      const [a, b] = [verifyMjs(r, { issuerFingerprint: issuer.public.fingerprint }), await verifyAsync(r, { issuerFingerprint: issuer.public.fingerprint }, globalThis.crypto.subtle)];
+      expect(b.checks.map((c) => [c.check, c.ok, c.detail])).toEqual(a.checks.map((c) => [c.check, c.ok, c.detail]));
+      return b.ok;
+    };
+    expect(await same(receipt)).toBe(true);
+    // A spread of single-field tampers across the receipt: every one fails the same way in both.
+    const paths = leafPaths(receipt).filter((p) => p.length > 0);
+    for (const path of paths.filter((_, i) => i % 7 === 0)) {
+      const r = clone(receipt);
+      mutateAt(r, path);
+      expect(await same(r), path.join(".")).toBe(false);
+    }
+  }, 120_000);
+
   it("standalone: runs with plain node in an empty folder", async () => {
     const dir = mkdtempSync(join(tmpdir(), "kept-standalone-"));
     copyFileSync(STANDALONE, join(dir, "verify-receipt.mjs"));

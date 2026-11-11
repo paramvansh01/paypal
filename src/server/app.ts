@@ -21,6 +21,7 @@ import type { EvidenceStore } from "../verifier/evidence-store.js";
 
 export const DEMO_SITES_DIR = fileURLToPath(new URL("../../demo/sites/", import.meta.url));
 export const REPORT_DIR = fileURLToPath(new URL("../../web/report/", import.meta.url));
+export const TOOLS_DIR = fileURLToPath(new URL("../../tools/", import.meta.url));
 export const APP_DIR = fileURLToPath(new URL("../../web/app/", import.meta.url));
 
 /**
@@ -133,6 +134,10 @@ export function createApp(config: Config, deps: AppDeps = {}): Express {
     res.sendFile("index.html", { root });
   };
   app.get("/jobs/:id/report", page(REPORT_DIR));
+  // The standalone receipt verifier, so the report page can run it with WebCrypto (TQ.12).
+  app.get("/assets/verify-receipt.mjs", (_req, res) => {
+    res.set({ "X-Content-Type-Options": "nosniff", "Cache-Control": "no-cache" }).type("text/javascript").sendFile("verify-receipt.mjs", { root: TOOLS_DIR });
+  });
 
   // The web app (T5): job list, job detail with live verdicts and the money panel, new-job flow.
   // Same build-free approach and CSP as the report.

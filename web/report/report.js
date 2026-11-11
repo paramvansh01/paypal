@@ -180,6 +180,7 @@ function render(r, job) {
         el("p", {}, "Anyone can recompute every hash, Merkle root and signature with the standalone verifier (plain Node, nothing to install):"),
         el("code", { class: "cmd" }, `node tools/verify-receipt.mjs ${location.origin}${receiptUrl}`),
       ),
+      browserCheck(r),
     ),
   );
 
@@ -353,3 +354,46 @@ function describe(e) {
 }
 
 load().catch((err) => showError(`Could not load the evidence: ${err?.message ?? err}`));
+
+/**
+ * TQ.12: verify the receipt right here, with WebCrypto, using the same
+ * standalone verifier the command line uses (tools/verify-receipt.mjs). Also
+ * checks the issuer key against this server's published key and re-hashes every
+ * evidence file served by this server.
+ */
+function browserCheck(r) {
+  const out = el("div", { class: "browser-check", "aria-live": "polite" });
+  const button = el("button", { type: "button", class: "btn primary" }, "Verify this receipt in your browser");
+  button.addEventListener("click", async () => {
+    button.disabled = true;
+    out.replaceChildren(el("p", { class: "muted" }, "Recomputing every hash, Merkle root and signature…"));
+    try {
+      const { verifyReceiptAsync } = await import("/assets/verify-receipt.mjs");
+      const issuer = await fetch("/.well-known/kept/issuer.json").then((x) => x.json()).catch(() => null);
+      const fp = issuer?.issuer?.fingerprint;
+      const result = await verifyReceiptAsync(r, fp ? { issuerFingerprint: fp } : {});
+      const bad = [];
+      for (const a of r.artifacts ?? []) {
+        const url = evidenceUrl(a.sha256, a.kind);
+        if (!url) {
+          bad.push(a.sha256);
+          continue;
+        }
+        const bytes = await fetch(url).then((x) => (x.ok ? x.arrayBuffer() : null));
+        const got = bytes ? Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", bytes)), (x) => x.toString(16).padStart(2, "0")).join("") : "";
+        if (got !== a.sha256) bad.push(a.sha256);
+      }
+      const checks = [...result.checks, { check: "artifact_bytes", ok: bad.length === 0, detail: bad.length ? `${bad.length} artifact(s) do not match their hash` : `${(r.artifacts ?? []).length} evidence files re-hashed, all match` }];
+      const ok = result.ok && bad.length === 0;
+      out.replaceChildren(
+        el("p", { class: ok ? "verdict-ok" : "verdict-bad" }, ok ? "VALID: every check passed, computed in this browser." : `INVALID: ${checks.filter((c) => !c.ok).length} check(s) failed.`),
+        el("ul", { class: "checks" }, checks.map((c) => el("li", {}, badge(c.ok ? "pass" : "fail", c.ok ? "pass" : "fail"), " ", el("b", {}, c.check), " ", el("span", { class: "muted" }, c.detail)))),
+        fp ? el("p", { class: "muted" }, "Issuer key compared with this server's /.well-known/kept/issuer.json.") : el("p", { class: "muted" }, "Issuer key not compared (no published key)."),
+      );
+    } catch (err) {
+      out.replaceChildren(el("p", { class: "verdict-bad" }, `Could not run the check here: ${err?.message ?? err}. Use the command line verifier above.`));
+    }
+    button.disabled = false;
+  });
+  return el("div", { class: "browser-check-wrap" }, button, out);
+}

@@ -91,3 +91,10 @@ details > summary { cursor: pointer; color: var(--accent); }
   .facts dt { margin-top: 0.4rem; }
   .timeline li { grid-template-columns: 1fr; gap: 0; }
 }
+.browser-check-wrap { margin-top: 1rem; }
+.btn[disabled], button[disabled] { opacity: 0.6; cursor: progress; }
+button.btn { font: inherit; cursor: pointer; }
+.verdict-ok { color: var(--pass); font-weight: 700; margin: 0.75rem 0 0.25rem; }
+.verdict-bad { color: var(--fail); font-weight: 700; margin: 0.75rem 0 0.25rem; }
+.checks { list-style: none; padding: 0; margin: 0; font-size: 0.9rem; }
+.checks li { padding: 0.2rem 0; overflow-wrap: anywhere; }

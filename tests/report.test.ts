@@ -27,6 +27,7 @@ let db: Db;
 let browser: Browser;
 let sneakyJob: string;
 let pendingJob: string;
+let cleanJob: string;
 
 beforeAll(async () => {
   const holder: { app?: ReturnType<typeof createApp> } = {};
@@ -45,6 +46,9 @@ beforeAll(async () => {
   sneakyJob = createDeliveredDemoJob(db, { keyring, deliverableUrl: `${base}/demo/sites/sneaky/` });
   await verify(db, sneakyJob);
   await settleJob(db, sneakyJob, { rail: new MockRail(), loadProof: loadProofFromDb, actor: "kept" });
+  cleanJob = createDeliveredDemoJob(db, { keyring, deliverableUrl: `${base}/demo/sites/flawed/` });
+  await verify(db, cleanJob);
+  await settleJob(db, cleanJob, { rail: new MockRail(), loadProof: loadProofFromDb, actor: "kept" });
   pendingJob = createDeliveredDemoJob(db, { keyring, deliverableUrl: `${base}/demo/sites/good/` });
 
   // XSS probe: an evidence summary carrying markup (as a hostile page could make it) must render as text.
@@ -132,6 +136,23 @@ describe("evidence report page", () => {
     expect(problems).toEqual([]);
     await page.close();
   });
+
+  it("verifies the receipt in the browser (WebCrypto): VALID when untouched, INVALID naming the check when evidence was edited", async () => {
+    const ok = await open(`/jobs/${cleanJob}/report`);
+    await ok.page.getByRole("button", { name: "Verify this receipt in your browser" }).click();
+    await ok.page.getByText(/VALID: every check passed, computed in this browser/).waitFor({ timeout: 30_000 });
+    expect(await ok.page.locator(".checks li").count()).toBeGreaterThan(8);
+    expect(ok.problems).toEqual([]);
+    await ok.page.close();
+
+    // The XSS probe above rewrote one stored evidence leaf of the sneaky job: its Merkle root no longer matches.
+    const bad = await open(`/jobs/${sneakyJob}/report`);
+    await bad.page.getByRole("button", { name: "Verify this receipt in your browser" }).click();
+    await bad.page.getByText(/INVALID: \d+ check\(s\) failed/).waitFor({ timeout: 30_000 });
+    const failed = await bad.page.locator(".checks li", { has: bad.page.locator(".v-fail") }).allInnerTexts();
+    expect(failed.join("\n")).toMatch(/leaves|certificate/);
+    await bad.page.close();
+  }, 90_000);
 
   it("before verification it says so; for an unknown job it says so", async () => {
     const pending = await open(`/jobs/${pendingJob}/report`);
