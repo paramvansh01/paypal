@@ -1,0 +1,1408 @@
+{
+  "info": {
+    "name": "Kept \u2014 Proof-Carrying Payments",
+    "description": "Kept's REST API (job lifecycle, proof, judge mode, MCP) and the raw PayPal sandbox calls Kept makes. Run the 'Job lifecycle' folder top to bottom. Set clientToken / workerToken from `npm run party-token -- party_demo_client` (or use Judge mode: demo session). No secrets are stored in this file.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Job lifecycle",
+      "item": [
+        {
+          "name": "Post a job (client)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/jobs",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "jobs"
+              ]
+            },
+            "description": "The client posts a job with its contract. The server adds its verifier quorum. Saves jobId and checklistHash.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Halcyon Crumb website\",\n  \"brief\": \"A bakery website with a menu and a working contact form.\",\n  \"worker_id\": \"party_demo_worker\",\n  \"budget_cents\": 10000,\n  \"checklist\": {\n    \"version\": 1,\n    \"currency\": \"USD\",\n    \"total_cents\": 10000,\n    \"milestones\": [\n      {\n        \"title\": \"Home page live\",\n        \"amount_cents\": 2500,\n        \"items\": [\n          {\n            \"description\": \"Home page loads\",\n            \"check_type\": \"http_status\",\n            \"params\": {\n              \"path\": \"/\",\n              \"expected\": 200\n            }\n          },\n          {\n            \"description\": \"Shows the tagline\",\n            \"check_type\": \"text_present\",\n            \"params\": {\n              \"path\": \"/\",\n              \"text\": \"Slow bread, baked before sunrise.\"\n            }\n          },\n          {\n            \"description\": \"Navigation links to the menu\",\n            \"check_type\": \"element_exists\",\n            \"params\": {\n              \"path\": \"/\",\n              \"selector\": \"nav a[href='menu.html']\"\n            }\n          }\n        ]\n      },\n      {\n        \"title\": \"Menu published\",\n        \"amount_cents\": 2500,\n        \"items\": [\n          {\n            \"description\": \"Menu lists items\",\n            \"check_type\": \"element_exists\",\n            \"params\": {\n              \"path\": \"/menu.html\",\n              \"selector\": \".menu-item\"\n            }\n          },\n          {\n            \"description\": \"Menu includes the sourdough loaf\",\n            \"check_type\": \"text_present\",\n            \"params\": {\n              \"path\": \"/menu.html\",\n              \"text\": \"Country sourdough loaf\"\n            }\n          },\n          {\n            \"description\": \"No broken links on the home page\",\n            \"check_type\": \"links_ok\",\n            \"params\": {\n              \"path\": \"/\"\n            }\n          }\n        ]\n      },\n      {\n        \"title\": \"Contact form works\",\n        \"amount_cents\": 2500,\n        \"items\": [\n          {\n            \"description\": \"Contact form sends a message and confirms it\",\n            \"check_type\": \"form_submits\",\n            \"params\": {\n              \"path\": \"/contact.html\",\n              \"form_selector\": \"#contact-form\",\n              \"fields\": {\n                \"#name\": \"Kept Verifier\",\n                \"#email\": \"verifier@example.com\",\n                \"#message\": \"Hello from the Kept verifier.\"\n              },\n              \"success\": {\n                \"text\": \"Thanks \\u2014 we'll be in touch\"\n              }\n            }\n          }\n        ]\n      },\n      {\n        \"title\": \"Mobile ready and fast\",\n        \"amount_cents\": 2500,\n        \"items\": [\n          {\n            \"description\": \"No sideways scrolling on a phone\",\n            \"check_type\": \"mobile_no_overflow\",\n            \"params\": {\n              \"path\": \"/\"\n            }\n          },\n          {\n            \"description\": \"Home page loads in under 3 seconds\",\n            \"check_type\": \"load_time_under\",\n            \"params\": {\n              \"path\": \"/\",\n              \"ms\": 3000\n            }\n          }\n        ]\n      }\n    ]\n  }\n}"
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{clientToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('201 Created', () => pm.response.to.have.status(201));",
+                  "const j = pm.response.json();",
+                  "pm.collectionVariables.set('jobId', j.id);",
+                  "pm.collectionVariables.set('checklistHash', j.checklist_hash);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get job",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/jobs/{{jobId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "jobs",
+                "{{jobId}}"
+              ]
+            },
+            "description": "Full state: checklist + hash, acceptances, milestones and verdicts, PayPal IDs, verification round. Public.",
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        },
+        {
+          "name": "Accept contract (client)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/jobs/{{jobId}}/accept",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "jobs",
+                "{{jobId}}",
+                "accept"
+              ]
+            },
+            "description": "Accept exactly the reviewed hash.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"checklist_hash\": \"{{checklistHash}}\"\n}"
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{clientToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Accept contract (worker)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/jobs/{{jobId}}/accept",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "jobs",
+                "{{jobId}}",
+                "accept"
+              ]
+            },
+            "description": "When both parties have accepted the same hash, the contract is frozen (AGREED).",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"checklist_hash\": \"{{checklistHash}}\"\n}"
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{workerToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('agreed', () => pm.expect(pm.response.json().agreed).to.eql(true));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Lock funds (client)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/jobs/{{jobId}}/lock",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "jobs",
+                "{{jobId}}",
+                "lock"
+              ]
+            },
+            "description": "Creates the PayPal order (custom_id = contract hash). Open approve_url and approve with the sandbox buyer.",
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{clientToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const b = pm.response.json(); if (b.approve_url) console.log('Approve in PayPal:', b.approve_url);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Confirm funds (client)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/jobs/{{jobId}}/confirm",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "jobs",
+                "{{jobId}}",
+                "confirm"
+              ]
+            },
+            "description": "After approving in PayPal: authorize/capture. Status FUNDED.",
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{clientToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Submit work (worker)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/jobs/{{jobId}}/submit",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "jobs",
+                "{{jobId}}",
+                "submit"
+              ]
+            },
+            "description": "Use good, flawed or sneaky to see each outcome.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"deliverable_url\": \"{{baseUrl}}/demo/sites/flawed/\"\n}"
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{workerToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Run the verifier quorum",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/jobs/{{jobId}}/verify?wait=1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "jobs",
+                "{{jobId}}",
+                "verify"
+              ],
+              "query": [
+                {
+                  "key": "wait",
+                  "value": "1"
+                }
+              ]
+            },
+            "description": "Three verifiers in different browsers check every item; 2 of 3 must agree. ?wait=1 returns the summary.",
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{workerToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Decide an item (client)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/jobs/{{jobId}}/items/0/0/decision",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "jobs",
+                "{{jobId}}",
+                "items",
+                "0",
+                "0",
+                "decision"
+              ]
+            },
+            "description": "Only for items the quorum left to the client (needs_client). Change /0/0 to the milestone and item index.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"decision\": \"approve\",\n  \"note\": \"Looks good\"\n}"
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{clientToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Settle",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/jobs/{{jobId}}/settle",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "jobs",
+                "{{jobId}}",
+                "settle"
+              ]
+            },
+            "description": "Re-checks the contract hash and the quorum certificate, then releases passed and refunds failed milestones on PayPal. Idempotent.",
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{clientToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Ledger",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/jobs/{{jobId}}/ledger",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "jobs",
+                "{{jobId}}",
+                "ledger"
+              ]
+            },
+            "description": "Held, released and refunded amounts with PayPal IDs.",
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        },
+        {
+          "name": "PayPal's view of the job",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/jobs/{{jobId}}/paypal",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "jobs",
+                "{{jobId}}",
+                "paypal"
+              ]
+            },
+            "description": "What PayPal itself reports for the order (T2.7).",
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        },
+        {
+          "name": "Events (timeline)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/jobs/{{jobId}}/events",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "jobs",
+                "{{jobId}}",
+                "events"
+              ]
+            },
+            "description": "",
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        },
+        {
+          "name": "Cancel (client, before funding)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/jobs/{{jobId}}/cancel",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "jobs",
+                "{{jobId}}",
+                "cancel"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"changed my mind\"\n}"
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{clientToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Propose a revised checklist",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/jobs/{{jobId}}/checklist",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "jobs",
+                "{{jobId}}",
+                "checklist"
+              ]
+            },
+            "description": "Before agreement only; earlier acceptances lapse.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"checklist\": {\n    \"version\": 1,\n    \"currency\": \"USD\",\n    \"total_cents\": 10000,\n    \"milestones\": [\n      {\n        \"title\": \"Home page live\",\n        \"amount_cents\": 2500,\n        \"items\": [\n          {\n            \"description\": \"Home page loads\",\n            \"check_type\": \"http_status\",\n            \"params\": {\n              \"path\": \"/\",\n              \"expected\": 200\n            }\n          },\n          {\n            \"description\": \"Shows the tagline\",\n            \"check_type\": \"text_present\",\n            \"params\": {\n              \"path\": \"/\",\n              \"text\": \"Slow bread, baked before sunrise.\"\n            }\n          },\n          {\n            \"description\": \"Navigation links to the menu\",\n            \"check_type\": \"element_exists\",\n            \"params\": {\n              \"path\": \"/\",\n              \"selector\": \"nav a[href='menu.html']\"\n            }\n          }\n        ]\n      },\n      {\n        \"title\": \"Menu published\",\n        \"amount_cents\": 2500,\n        \"items\": [\n          {\n            \"description\": \"Menu lists items\",\n            \"check_type\": \"element_exists\",\n            \"params\": {\n              \"path\": \"/menu.html\",\n              \"selector\": \".menu-item\"\n            }\n          },\n          {\n            \"description\": \"Menu includes the sourdough loaf\",\n            \"check_type\": \"text_present\",\n            \"params\": {\n              \"path\": \"/menu.html\",\n              \"text\": \"Country sourdough loaf\"\n            }\n          },\n          {\n            \"description\": \"No broken links on the home page\",\n            \"check_type\": \"links_ok\",\n            \"params\": {\n              \"path\": \"/\"\n            }\n          }\n        ]\n      },\n      {\n        \"title\": \"Contact form works\",\n        \"amount_cents\": 2500,\n        \"items\": [\n          {\n            \"description\": \"Contact form sends a message and confirms it\",\n            \"check_type\": \"form_submits\",\n            \"params\": {\n              \"path\": \"/contact.html\",\n              \"form_selector\": \"#contact-form\",\n              \"fields\": {\n                \"#name\": \"Kept Verifier\",\n                \"#email\": \"verifier@example.com\",\n                \"#message\": \"Hello from the Kept verifier.\"\n              },\n              \"success\": {\n                \"text\": \"Thanks \\u2014 we'll be in touch\"\n              }\n            }\n          }\n        ]\n      },\n      {\n        \"title\": \"Mobile ready and fast\",\n        \"amount_cents\": 2500,\n        \"items\": [\n          {\n            \"description\": \"No sideways scrolling on a phone\",\n            \"check_type\": \"mobile_no_overflow\",\n            \"params\": {\n              \"path\": \"/\"\n            }\n          },\n          {\n            \"description\": \"Home page loads in under 3 seconds\",\n            \"check_type\": \"load_time_under\",\n            \"params\": {\n              \"path\": \"/\",\n              \"ms\": 3000\n            }\n          }\n        ]\n      }\n    ]\n  }\n}"
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{clientToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Proof",
+      "item": [
+        {
+          "name": "Proof Receipt",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/jobs/{{jobId}}/receipt",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "jobs",
+                "{{jobId}}",
+                "receipt"
+              ]
+            },
+            "description": "Everything needed to check the payout offline. Verify with: node tools/verify-receipt.mjs <file|url>",
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        },
+        {
+          "name": "Proof Receipt (download)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/jobs/{{jobId}}/receipt?download=1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "jobs",
+                "{{jobId}}",
+                "receipt"
+              ],
+              "query": [
+                {
+                  "key": "download",
+                  "value": "1"
+                }
+              ]
+            },
+            "description": "",
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        },
+        {
+          "name": "Verifier public keys",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/.well-known/kept/verifiers.json",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                ".well-known",
+                "kept",
+                "verifiers.json"
+              ]
+            },
+            "description": "",
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        },
+        {
+          "name": "Issuer (seal) key",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/.well-known/kept/issuer.json",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                ".well-known",
+                "kept",
+                "issuer.json"
+              ]
+            },
+            "description": "",
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        },
+        {
+          "name": "Evidence artifact by hash",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/evidence/{{artifactSha256}}.png",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "evidence",
+                "{{artifactSha256}}.png"
+              ]
+            },
+            "description": "Screenshots and details are addressed by their SHA-256, the same hash the verifiers signed.",
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Server, AI, judge mode, MCP",
+      "item": [
+        {
+          "name": "Health",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/health",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "health"
+              ]
+            },
+            "description": "Also says whether money moves (paypal_sandbox / offline / none) and whether AI is configured.",
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        },
+        {
+          "name": "List jobs",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/jobs?party=party_demo_client&limit=20",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "jobs"
+              ],
+              "query": [
+                {
+                  "key": "party",
+                  "value": "party_demo_client"
+                },
+                {
+                  "key": "limit",
+                  "value": "20"
+                }
+              ]
+            },
+            "description": "",
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        },
+        {
+          "name": "Parties",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/parties",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "parties"
+              ]
+            },
+            "description": "",
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        },
+        {
+          "name": "Who am I",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "me"
+              ]
+            },
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{clientToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Draft a contract with AI",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/checklists/generate",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "checklists",
+                "generate"
+              ]
+            },
+            "description": "Needs ANTHROPIC_API_KEY on the server. An AI draft: both parties still review and accept it.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"brief\": \"A one-page site for a cafe with opening hours and a contact form.\",\n  \"budget_cents\": 6000,\n  \"currency\": \"USD\"\n}"
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{clientToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Judge mode: demo session",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/demo/session",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "demo",
+                "session"
+              ]
+            },
+            "description": "Only with DEMO_MODE=1: returns the demo client's token.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"role\": \"client\"\n}"
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        },
+        {
+          "name": "Judge mode: run the demo",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/demo/run",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "demo",
+                "run"
+              ]
+            },
+            "description": "Only with DEMO_MODE=1: buyer and worker agents run a whole job over MCP.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"site\": \"sneaky\"\n}"
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set('jobId', pm.response.json().job_id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "MCP: list tools",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json, text/event-stream"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/mcp",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "mcp"
+              ]
+            },
+            "description": "Kept is also an MCP server (Streamable HTTP, stateless). Use an MCP client for real sessions; this shows the raw JSON-RPC.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/list\",\n  \"params\": {}\n}"
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{clientToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "PayPal sandbox (raw calls Kept makes)",
+      "item": [
+        {
+          "name": "Get access token",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/x-www-form-urlencoded"
+              }
+            ],
+            "url": {
+              "raw": "{{paypalBaseUrl}}/v1/oauth2/token",
+              "host": [
+                "{{paypalBaseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "oauth2",
+                "token"
+              ]
+            },
+            "description": "Basic auth with client ID and secret; body grant_type=client_credentials. Saves paypalToken.",
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{paypalClientId}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{paypalClientSecret}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                {
+                  "key": "grant_type",
+                  "value": "client_credentials"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set('paypalToken', pm.response.json().access_token);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create order (auth_capture rail)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{paypalBaseUrl}}/v2/checkout/orders",
+              "host": [
+                "{{paypalBaseUrl}}"
+              ],
+              "path": [
+                "v2",
+                "checkout",
+                "orders"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"intent\": \"AUTHORIZE\",\n  \"purchase_units\": [\n    {\n      \"reference_id\": \"job_x\",\n      \"custom_id\": \"<contract hash>\",\n      \"invoice_id\": \"kept-job_x-order\",\n      \"amount\": {\n        \"currency_code\": \"USD\",\n        \"value\": \"100.00\"\n      }\n    }\n  ]\n}"
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{paypalToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Create order (delayed disbursement rail)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{paypalBaseUrl}}/v2/checkout/orders",
+              "host": [
+                "{{paypalBaseUrl}}"
+              ],
+              "path": [
+                "v2",
+                "checkout",
+                "orders"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"intent\": \"CAPTURE\",\n  \"purchase_units\": [\n    {\n      \"reference_id\": \"ms_0\",\n      \"custom_id\": \"<contract hash>\",\n      \"amount\": {\n        \"currency_code\": \"USD\",\n        \"value\": \"25.00\"\n      },\n      \"payee\": {\n        \"merchant_id\": \"<worker merchant id>\"\n      },\n      \"payment_instruction\": {\n        \"disbursement_mode\": \"DELAYED\"\n      }\n    }\n  ]\n}"
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{paypalToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Show order",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{paypalBaseUrl}}/v2/checkout/orders/{{paypalOrderId}}",
+              "host": [
+                "{{paypalBaseUrl}}"
+              ],
+              "path": [
+                "v2",
+                "checkout",
+                "orders",
+                "{{paypalOrderId}}"
+              ]
+            },
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{paypalToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Authorize order",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{paypalBaseUrl}}/v2/checkout/orders/{{paypalOrderId}}/authorize",
+              "host": [
+                "{{paypalBaseUrl}}"
+              ],
+              "path": [
+                "v2",
+                "checkout",
+                "orders",
+                "{{paypalOrderId}}",
+                "authorize"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{paypalToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Capture order",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{paypalBaseUrl}}/v2/checkout/orders/{{paypalOrderId}}/capture",
+              "host": [
+                "{{paypalBaseUrl}}"
+              ],
+              "path": [
+                "v2",
+                "checkout",
+                "orders",
+                "{{paypalOrderId}}",
+                "capture"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{paypalToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Capture part of an authorization (release a milestone)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{paypalBaseUrl}}/v2/payments/authorizations/{{authorizationId}}/capture",
+              "host": [
+                "{{paypalBaseUrl}}"
+              ],
+              "path": [
+                "v2",
+                "payments",
+                "authorizations",
+                "{{authorizationId}}",
+                "capture"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": {\n    \"currency_code\": \"USD\",\n    \"value\": \"25.00\"\n  },\n  \"final_capture\": false,\n  \"invoice_id\": \"kept-job_x-m1\",\n  \"note_to_payer\": \"Kept: milestone 1 passed verification. Proof certificate <hash>\"\n}"
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{paypalToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Void the rest of an authorization",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{paypalBaseUrl}}/v2/payments/authorizations/{{authorizationId}}/void",
+              "host": [
+                "{{paypalBaseUrl}}"
+              ],
+              "path": [
+                "v2",
+                "payments",
+                "authorizations",
+                "{{authorizationId}}",
+                "void"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{paypalToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Release held funds (referenced payout)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{paypalBaseUrl}}/v1/payments/referenced-payouts-items",
+              "host": [
+                "{{paypalBaseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "payments",
+                "referenced-payouts-items"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reference_id\": \"{{captureId}}\",\n  \"reference_type\": \"TRANSACTION_ID\"\n}"
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{paypalToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Refund a capture (failed milestone)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{paypalBaseUrl}}/v2/payments/captures/{{captureId}}/refund",
+              "host": [
+                "{{paypalBaseUrl}}"
+              ],
+              "path": [
+                "v2",
+                "payments",
+                "captures",
+                "{{captureId}}",
+                "refund"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"custom_id\": \"<certificate hash>\",\n  \"invoice_id\": \"kept-job_x-m3-refund\",\n  \"note_to_payer\": \"Kept: milestone 3 failed verification and is refunded.\"\n}"
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{paypalToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Verify webhook signature",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{paypalBaseUrl}}/v1/notifications/verify-webhook-signature",
+              "host": [
+                "{{paypalBaseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "notifications",
+                "verify-webhook-signature"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"auth_algo\": \"\",\n  \"cert_url\": \"\",\n  \"transmission_id\": \"\",\n  \"transmission_sig\": \"\",\n  \"transmission_time\": \"\",\n  \"webhook_id\": \"\",\n  \"webhook_event\": {}\n}"
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{paypalToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "jobId",
+      "value": ""
+    },
+    {
+      "key": "checklistHash",
+      "value": ""
+    },
+    {
+      "key": "artifactSha256",
+      "value": ""
+    },
+    {
+      "key": "paypalToken",
+      "value": ""
+    },
+    {
+      "key": "paypalOrderId",
+      "value": ""
+    },
+    {
+      "key": "authorizationId",
+      "value": ""
+    },
+    {
+      "key": "captureId",
+      "value": ""
+    }
+  ]
+}

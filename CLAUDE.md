@@ -566,7 +566,7 @@ The pure parts (TQ.1–TQ.3) need no keys or network and come first. Every task 
 - [ ] **T7.2** Deploy. Register the PayPal webhook for the hosted URL. Put the URL in Live State and the README.
   *Done when:* `npm run demo` works against the hosted URL.
 - [~] **T7.3** (Aashman — `DEMO_MODE=1`: "Run the demo" buttons (good/flawed/sneaky) that run the buyer and worker agents over the server's own /mcp, one-click "act as the demo client/worker", approval-link pause wired; the sandbox login instructions wait for H3) Judge mode on the hosted demo: a "Run the demo" button that starts a seeded job, and clear on-page instructions for the sandbox approval step, including which demo login to use (check with the human how to share this safely).
-- [ ] **T7.4** Postman collection in `postman/`: every Kept endpoint and the raw PayPal calls we make, with an environment template and no secrets. Link it in the README.
+- [x] **T7.4** Postman collection in `postman/`: every Kept endpoint and the raw PayPal calls we make, with an environment template and no secrets. Link it in the README.
 - [ ] **T7.5** (SHOULD) Meet each sponsor prize requirement recorded in section 4.
 - [ ] **T7.6** (COULD) Run the verifier agent on Astropods.
 
