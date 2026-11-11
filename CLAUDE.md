@@ -546,10 +546,10 @@ The pure parts (TQ.1–TQ.3) need no keys or network and come first. Every task 
 
 ### P5 — Web UI (MUST for the core views, SHOULD for polish)
 
-- [ ] **T5.1** Job list and job detail: status, milestones, checklist with live verdicts turning green or red as the verifier runs (polling or server-sent events).
-- [ ] **T5.2** Evidence viewer: per item, the screenshot, measured value and replay link.
-- [ ] **T5.3** Money panel: held, released, refunded, with PayPal IDs and gross/fee/net.
-- [ ] **T5.4** Human flow: create a job from a brief, review and accept the checklist, approve payment, approve `client_approval` items.
+- [x] **T5.1** Job list and job detail: status, milestones, checklist with live verdicts turning green or red as the verifier runs (polling or server-sent events).
+- [x] **T5.2** Evidence viewer: per item, the screenshot, measured value and replay link.
+- [~] **T5.3** (Aashman — held/released/refunded, PayPal IDs and gross per milestone are on the job page; fee and net wait for the PayPal rail, T2.3) Money panel: held, released, refunded, with PayPal IDs and gross/fee/net.
+- [x] **T5.4** Human flow: create a job from a brief, review and accept the checklist, approve payment, approve `client_approval` items.
 - [ ] **T5.5** (SHOULD) Visual polish for the video: clear typography, a calm colour scheme, readable at 1080p. No PayPal logos or other third-party marks in our own UI.
 - [ ] **T5.6** (COULD) Ledger table with AG Grid. Only build this if the team decides to enter the AG Grid prize (see Decision Log).
 
@@ -565,7 +565,7 @@ The pure parts (TQ.1–TQ.3) need no keys or network and come first. Every task 
 - [ ] **T7.1** `render.yaml` for one web service: build, start, env var names, health check. Database is seeded on boot if empty.
 - [ ] **T7.2** Deploy. Register the PayPal webhook for the hosted URL. Put the URL in Live State and the README.
   *Done when:* `npm run demo` works against the hosted URL.
-- [ ] **T7.3** Judge mode on the hosted demo: a "Run the demo" button that starts a seeded job, and clear on-page instructions for the sandbox approval step, including which demo login to use (check with the human how to share this safely).
+- [~] **T7.3** (Aashman — `DEMO_MODE=1`: "Run the demo" buttons (good/flawed/sneaky) that run the buyer and worker agents over the server's own /mcp, one-click "act as the demo client/worker", approval-link pause wired; the sandbox login instructions wait for H3) Judge mode on the hosted demo: a "Run the demo" button that starts a seeded job, and clear on-page instructions for the sandbox approval step, including which demo login to use (check with the human how to share this safely).
 - [ ] **T7.4** Postman collection in `postman/`: every Kept endpoint and the raw PayPal calls we make, with an environment template and no secrets. Link it in the README.
 - [ ] **T7.5** (SHOULD) Meet each sponsor prize requirement recorded in section 4.
 - [ ] **T7.6** (COULD) Run the verifier agent on Astropods.
@@ -656,6 +656,9 @@ Format: `YYYY-MM-DD — <name> — decision — reason`
 - 2026-11-11 — Aashman — MCP server (`src/mcp/server.ts`, SDK `@modelcontextprotocol/sdk` 1.32): `POST /mcp` is stateless Streamable HTTP with JSON responses (no sessions, GET/DELETE → 405); each request builds a fresh McpServer bound to the party of its bearer token, so the acting party never comes from a tool argument. Every MCP call needs a token, reads included (REST reads stay public). stdio entry `src/mcp/stdio.ts` (`npm run --silent mcp`, or `node_modules/.bin/tsx src/mcp/stdio.ts`) acts as the party in `KEPT_PARTY_TOKEN`, reads `.env` from its cwd, and sends all logs to stderr. Tools beyond 6.8, needed to finish a job without REST: `whoami`, `propose_checklist`, `cancel_job`, `confirm_funds`. `verify` waits for the quorum (unlike REST's 202). Domain errors come back as tool errors labelled like the HTTP status (`Not allowed: …`, `Unavailable: … T2.3`), from one shared `classifyError` (`src/server/errors.ts`). Shared wiring for both entry points lives in `src/server/services.ts`.
 - 2026-11-11 — Aashman — The stdio MCP entry chdirs to the repo root before loading config (dynamic imports), because desktop clients start servers from arbitrary folders; `.env` and relative data paths then match the web server.
 - 2026-11-11 — Aashman — Demo agents (`agents/`) are plain MCP clients with no LLM, so the demo is repeatable without keys; the buyer uses `demo/contract.json` until the checklist generator (T3.2) is live. The buyer rejects any item the quorum left to the client unless told otherwise (an agent spending money does not approve what it could not verify). `npm run demo` starts its own throwaway server on the OFFLINE stand-in rail (`src/rails/offline.ts`, every ID `OFFLINE-…`, narration says no money moves) until T2.3; `--base <url>` drives a real server and pauses for the PayPal approval click.
+- 2026-11-11 — Aashman — Web app (T5) is build-free like the report (`web/app/`: plain HTML/CSS/ES module, strict CSP, textContent only), not React + Vite — no build step for judges or Render, one less toolchain, and the CSP can stay `default-src 'none'`. Routes: `/` job list, `/app/new`, `/app/jobs/:id` (the JSON API keeps `/jobs/:id`). Inline `style` attributes are forbidden by that CSP; use classes (a test checks for CSP console errors). Sign-in is a party token kept in sessionStorage. New REST reads: `GET /me`, `GET /parties` (no emails), `GET /jobs/:id/events`. Live per-verifier votes come from `VERIFIER_ITEM` events, so items turn green/red per verifier before the certificate exists.
+- 2026-11-11 — Aashman — Judge mode: `DEMO_MODE=1` (default off) lets anyone act as the demo parties and run demo jobs (`src/server/demo.ts`); when no PayPal rail is configured the server then uses the OFFLINE stand-in, and `/health` reports `money: offline|paypal_sandbox|none`, which the UI shows as a banner. Never set DEMO_MODE on a server with real parties.
+- 2026-11-11 — Aashman — Vitest runs at most 6 workers: with 10, parallel browser-launching test files made WebKit crash.
 
 ---
 

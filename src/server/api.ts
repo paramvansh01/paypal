@@ -10,6 +10,7 @@ import {
   confirmFunds,
   createJob,
   DecisionInput,
+  jobEvents,
   jobView,
   ledger,
   listJobs,
@@ -22,7 +23,7 @@ import { loadProofFromDb, recordClientDecision } from "../core/proof-store.js";
 import { buildRailJob, settleJob } from "../core/settlement.js";
 import { recordEvent } from "../core/state.js";
 import type { Db } from "../db/client.js";
-import { jobs } from "../db/schema.js";
+import { jobs, parties } from "../db/schema.js";
 import type { Keyring } from "../qaps/keys.js";
 import type { PaymentRail } from "../rails/types.js";
 import type { VerificationSummary } from "../verifier/orchestrator.js";
@@ -47,6 +48,9 @@ import { eq } from "drizzle-orm";
  *   POST /jobs/:id/items/:m/:i/decision     client decides an item the quorum left to a person
  *   POST /jobs/:id/settle                   either party: re-verifies, then releases/refunds on PayPal
  *   GET  /jobs/:id/ledger                   money view
+ *   GET  /jobs/:id/events                   the append-only event log (timeline)
+ *   GET  /parties                           parties (ID, kind, name; no emails)
+ *   GET  /me                                the party a token belongs to
  */
 
 export interface ApiDeps {
@@ -187,6 +191,18 @@ export function apiRouter(config: Config, deps: ApiDeps): Router {
 
   r.get("/jobs/:id/ledger", (req, res) => {
     res.json(ledger(db, id(req)));
+  });
+
+  r.get("/jobs/:id/events", (req, res) => {
+    res.json({ events: jobEvents(db, id(req)) });
+  });
+
+  r.get("/parties", (_req, res) => {
+    res.json({ parties: db.select({ id: parties.id, kind: parties.kind, display_name: parties.displayName }).from(parties).orderBy(parties.id).all() });
+  });
+
+  r.get("/me", auth, (req, res) => {
+    res.json({ party_id: req.party!.id, kind: req.party!.kind, display_name: req.party!.displayName });
   });
 
   r.use(apiErrors);

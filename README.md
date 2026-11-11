@@ -44,6 +44,10 @@ npm run dev
 
 Open http://localhost:3000. Health check: http://localhost:3000/health
 
+The web app lists jobs; each job page shows the contract and its fingerprint, every verifier's vote as it lands, the quorum verdicts, the money (held, released, refunded, PayPal IDs) and the timeline, plus a link to the full evidence report and the Proof Receipt. Sign in with a party token (`npm run party-token -- party_demo_client`) to post a job, accept a contract, lock funds, deliver, verify and settle by clicking.
+
+**Judge mode:** start with `DEMO_MODE=1 npm run dev` and the home page gets "Run the demo" buttons (two AI agents run a whole job over MCP) and one-click sign-in as the demo client or worker. Until the PayPal sandbox is connected, judge mode uses an OFFLINE stand-in for PayPal: no money moves, every payment ID starts with `OFFLINE-`, and the page says so.
+
 ## Demo walkthrough
 
 _To be written once the end-to-end demo works._

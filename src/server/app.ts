@@ -10,30 +10,15 @@ import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/
 import { createMcpServer } from "../mcp/server.js";
 import { apiErrors, apiRouter } from "./api.js";
 import { requireParty } from "./auth.js";
+import { demoRouter } from "./demo.js";
+import { isOfflineRail } from "../rails/offline.js";
 import { publicKeyring, type Keyring, type VerifierKey } from "../qaps/keys.js";
 import type { EvidenceStore } from "../verifier/evidence-store.js";
 
-const PLACEHOLDER_PAGE = `<!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Kept</title>
-<style>
-  body { font-family: system-ui, sans-serif; max-width: 40rem; margin: 4rem auto; padding: 0 1rem; color: #1f2933; }
-  h1 { margin-bottom: 0.25rem; }
-  p.tag { color: #52606d; margin-top: 0; }
-</style>
-</head>
-<body>
-  <h1>Kept</h1>
-  <p class="tag">Money that checks the work before it moves.</p>
-  <p>The web UI is not built yet. The server is running: <a href="/health">/health</a></p>
-</body>
-</html>`;
 
 export const DEMO_SITES_DIR = fileURLToPath(new URL("../../demo/sites/", import.meta.url));
 export const REPORT_DIR = fileURLToPath(new URL("../../web/report/", import.meta.url));
+export const APP_DIR = fileURLToPath(new URL("../../web/app/", import.meta.url));
 
 /**
  * The report shows text that came from hostile deliverables. It is rendered
@@ -69,7 +54,14 @@ export function createApp(config: Config, deps: AppDeps = {}): Express {
   app.use(express.json({ limit: "1mb" }));
 
   app.get("/health", (_req, res) => {
-    res.json({ ok: true, service: "kept", rail: config.paypal.rail });
+    res.json({
+      ok: true,
+      service: "kept",
+      rail: config.paypal.rail,
+      /** Whether money really moves: the PayPal sandbox rail, the OFFLINE stand-in, or nothing yet. */
+      money: deps.rail ? (isOfflineRail(deps.rail) ? "offline" : "paypal_sandbox") : "none",
+      demo_mode: config.app.demoMode,
+    });
   });
 
   // Public verifier keys, so anyone can check attestations and Proof Receipts.
@@ -127,10 +119,19 @@ export function createApp(config: Config, deps: AppDeps = {}): Express {
     res.set("X-Content-Type-Options", "nosniff");
     next();
   }, express.static(REPORT_DIR, { index: false, maxAge: 0 }));
-  app.get("/jobs/:id/report", (_req, res) => {
+  const page = (root: string): express.RequestHandler => (_req, res) => {
     res.set({ "Content-Security-Policy": REPORT_CSP, "X-Content-Type-Options": "nosniff", "Referrer-Policy": "no-referrer", "Cache-Control": "no-store" });
-    res.sendFile("index.html", { root: REPORT_DIR });
-  });
+    res.sendFile("index.html", { root });
+  };
+  app.get("/jobs/:id/report", page(REPORT_DIR));
+
+  // The web app (T5): job list, job detail with live verdicts and the money panel, new-job flow.
+  // Same build-free approach and CSP as the report.
+  app.use("/assets/app", (_req, res, next) => {
+    res.set("X-Content-Type-Options", "nosniff");
+    next();
+  }, express.static(APP_DIR, { index: false, maxAge: 0 }));
+  app.get(["/", "/app/new", "/app/jobs/:id"], page(APP_DIR));
 
   // The MCP server (T4.1): Streamable HTTP, stateless, one MCP server per request
   // bound to the party whose bearer token came with it.
@@ -154,6 +155,9 @@ export function createApp(config: Config, deps: AppDeps = {}): Express {
     });
   }
 
+  // Demo helpers and judge mode (src/server/demo.ts).
+  if (deps.db) app.use(demoRouter(config, deps.db));
+
   // The job lifecycle API (T2.6).
   if (deps.db && deps.keyring) {
     app.use(apiRouter(config, { db: deps.db, keyring: deps.keyring, rail: deps.rail, verify: deps.verify }));
@@ -173,9 +177,6 @@ export function createApp(config: Config, deps: AppDeps = {}): Express {
     res.json({ ok: true });
   });
 
-  app.get("/", (_req, res) => {
-    res.type("html").send(PLACEHOLDER_PAGE);
-  });
 
   app.use(apiErrors);
 

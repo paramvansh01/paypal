@@ -402,6 +402,18 @@ export function jobView(db: Db, jobId: string) {
   };
 }
 
+/** The job's event log, oldest first. */
+export function jobEvents(db: Db, jobId: string) {
+  loadJob(db, jobId);
+  return db
+    .select()
+    .from(events)
+    .where(eq(events.jobId, jobId))
+    .orderBy(asc(events.id))
+    .all()
+    .map((e) => ({ id: e.id, type: e.type, actor: e.actor, payload: e.payload, at: e.createdAt }));
+}
+
 const MONEY_EVENTS = new Set(["MILESTONE_RELEASED", "MILESTONE_REFUNDED", "RAIL_FINALIZED", "SETTLEMENT_STARTED", "SETTLEMENT_INTERRUPTED", "SETTLEMENT_REFUSED"]);
 const MONEY_STATUSES = new Set<JobStatus>(["FUNDING_PENDING", "FUNDED", "SETTLED", "AUTO_RELEASED", "CANCELLED"]);
 

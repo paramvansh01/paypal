@@ -21,7 +21,7 @@ describe("server", () => {
     expect(await res.json()).toMatchObject({ ok: true, service: "kept" });
   });
 
-  it("GET / serves the placeholder page", async () => {
+  it("GET / serves the web app", async () => {
     const res = await fetch(base);
     expect(res.headers.get("content-type")).toMatch(/html/);
     expect(await res.text()).toContain("Kept");

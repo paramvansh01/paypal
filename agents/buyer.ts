@@ -27,6 +27,8 @@ export interface BuyerOptions {
    * Default: reject. An agent spending someone's money does not approve what it could not verify.
    */
   decide?: (item: ToolData, job: ToolData) => Promise<{ decision: "approve" | "reject"; note: string }>;
+  /** Called as soon as the job exists. */
+  onPosted?: (jobId: string) => void;
   pollMs?: number;
   /** Give up waiting for the worker after this long. */
   timeoutMs?: number;
@@ -67,6 +69,7 @@ export async function runBuyer(agent: KeptAgent, opts: BuyerOptions): Promise<Bu
     checklist: opts.checklist,
   });
   const jobId = posted.id as string;
+  opts.onPosted?.(jobId);
   log(`Job ${jobId} posted. Contract fingerprint (SHA-256): ${posted.checklist_hash}`);
   await agent.call("accept_checklist", { job_id: jobId, checklist_hash: posted.checklist_hash });
   log("Accepted the contract. Waiting for the worker to accept it too…");

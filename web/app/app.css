@@ -1,0 +1,53 @@
+.spacer { flex: 1; }
+.top { flex-wrap: wrap; }
+.who { display: flex; gap: 0.5rem; align-items: center; font-size: 0.9rem; }
+button, .btn { font: inherit; cursor: pointer; }
+button { padding: 0.5rem 0.95rem; border-radius: 8px; border: 1px solid var(--accent); background: var(--panel); color: var(--accent); font-weight: 600; }
+button.primary { background: var(--accent); color: var(--panel); }
+button.danger { border-color: var(--fail); color: var(--fail); }
+button.small { padding: 0.2rem 0.6rem; font-size: 0.85rem; }
+button:disabled { opacity: 0.55; cursor: progress; }
+.banner { padding: 0.6rem clamp(1rem, 4vw, 2.5rem); font-size: 0.92rem; border-bottom: 1px solid var(--line); }
+.banner.offline { background: var(--wait-bg); color: var(--wait); }
+.banner.none { background: var(--err-bg); color: var(--err); }
+.hero { margin: 0.5rem 0 1.5rem; }
+.hero p { max-width: 46rem; }
+.row { display: flex; flex-wrap: wrap; gap: 0.6rem; align-items: center; }
+.list { width: 100%; min-width: 36rem; }
+.list td, .list th { padding: 0.55rem 0.6rem; }
+.list a { font-weight: 600; text-decoration: none; }
+label { display: block; font-weight: 600; margin: 0.9rem 0 0.3rem; }
+label .muted { font-weight: 400; }
+input[type="text"], input[type="url"], input[type="number"], input[type="password"], select, textarea {
+  width: 100%; font: inherit; padding: 0.5rem 0.6rem; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); color: var(--ink);
+}
+textarea { font-family: var(--mono); font-size: 0.85rem; min-height: 14rem; }
+.form-error { color: var(--fail); margin-top: 0.75rem; }
+.stepper { display: flex; flex-wrap: wrap; gap: 0.3rem; list-style: none; padding: 0; margin: 1rem 0 0; }
+.stepper li { font-size: 0.78rem; padding: 0.2rem 0.55rem; border-radius: 999px; background: var(--err-bg); color: var(--muted); }
+.stepper li.done { background: var(--pass-bg); color: var(--pass); }
+.stepper li.now { background: var(--accent); color: var(--panel); font-weight: 700; }
+.action { border-left: 4px solid var(--accent); }
+.action h2 { margin-top: 0; }
+.items { list-style: none; padding: 0; margin: 0; }
+.items li { display: grid; grid-template-columns: 1fr auto; gap: 0.25rem 1rem; padding: 0.55rem 0; border-top: 1px solid var(--line); }
+.items .kind { color: var(--muted); font-size: 0.82rem; }
+.items .decide { grid-column: 1 / -1; display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center; }
+.ms-head { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 0.5rem; align-items: baseline; }
+.grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(19rem, 1fr)); gap: 0.9rem; }
+.log { font-family: var(--mono); font-size: 0.8rem; max-height: 14rem; overflow: auto; background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 0.5rem 0.7rem; margin: 0.5rem 0 0; white-space: pre-wrap; }
+.dialog { margin-top: 1rem; }
+.check { color: var(--pass); font-weight: 700; }
+.votes { display: flex; flex-wrap: wrap; gap: 0.25rem; margin-top: 0.3rem; }
+.votes .badge { font-size: 0.72rem; font-weight: 500; }
+.v-settled, .v-verified, .v-agreed, .v-funded { color: var(--pass); background: var(--pass-bg); }
+.v-cancelled, .v-disputed { color: var(--fail); background: var(--fail-bg); }
+.v-verifying, .v-delivered, .v-funding_pending, .v-checklist_proposed, .v-draft { color: var(--wait); background: var(--wait-bg); }
+.gap-top { margin-top: 1rem; }
+h2.flush, .summary.flush { margin-top: 0; }
+table.narrow { min-width: 24rem; }
+.fine { font-size: 0.85rem; }
+.replay { margin-left: 0.5rem; }
+textarea.brief { min-height: 5rem; font-family: inherit; font-size: 1rem; }
+input.note { max-width: 20rem; }
+.verdict { text-align: right; }

@@ -62,6 +62,8 @@ const EnvSchema = z.object({
   PUBLIC_BASE_URL: z.preprocess(blankToUndefined, z.url().default("http://localhost:3000")),
   DATABASE_PATH: z.preprocess(blankToUndefined, z.string().default("./data/kept.db")),
   MCP_AUTH_TOKEN: optionalString,
+  /** "1"/"true": the web UI may hand out the demo parties' tokens (judge mode, T7.3). Never on a server with real parties. */
+  DEMO_MODE: z.preprocess(blankToUndefined, z.enum(["0", "1", "true", "false"]).default("0").transform((v) => v === "1" || v === "true")),
 })
   .superRefine((env, ctx) => {
     // 2k > n means two conflicting quorums can never both form, so a single
@@ -103,7 +105,7 @@ export interface Config {
     evidenceDir: string;
     checkTimeoutMs: number;
   };
-  app: { port: number; publicBaseUrl: string; databasePath: string; mcpAuthToken?: string };
+  app: { port: number; publicBaseUrl: string; databasePath: string; mcpAuthToken?: string; demoMode: boolean };
 }
 
 export class ConfigError extends Error {
@@ -157,6 +159,7 @@ export function loadConfig(source: NodeJS.ProcessEnv = process.env): Config {
       publicBaseUrl: env.PUBLIC_BASE_URL,
       databasePath: env.DATABASE_PATH,
       mcpAuthToken: env.MCP_AUTH_TOKEN,
+      demoMode: env.DEMO_MODE,
     },
   };
 }
