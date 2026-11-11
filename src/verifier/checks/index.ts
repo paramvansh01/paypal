@@ -341,12 +341,39 @@ const clientApproval: Check<ItemOf<"client_approval">> = async () => ({
   summary: "Waiting for the client to approve or reject",
 });
 
-/** Placeholder until T3.6: without the AI judge, a person decides. */
-const llmJudgementUnavailable: Check<ItemOf<"llm_judgement">> = async () => ({
-  verdict: "needs_client",
-  measured_value: null,
-  summary: "AI judge not configured on this verifier; the client decides",
-});
+/**
+ * T3.6: a narrow yes/no question answered by this verifier's AI judge, from the
+ * page's visible text and a screenshot. Always labelled "AI opinion". Without a
+ * judge (no API key), a person decides.
+ */
+const llmJudgement: Check<ItemOf<"llm_judgement">> = async (item, ctx) => {
+  if (!ctx.judge) {
+    return { verdict: "needs_client", measured_value: null, summary: "AI judge not configured on this verifier; the client decides" };
+  }
+  const { page, response, url, error } = await open(ctx, item.params.path);
+  try {
+    if (!response?.ok()) return unreachable(url, error ?? `status ${response?.status()}`, await snap(page));
+    const screenshot = await snap(page);
+    const pageText = await page.evaluate("document.body ? document.body.innerText : ''").then(String).catch(() => "");
+    const v = await ctx.judge({ question: item.params.question, pageUrl: url, pageText, screenshotPng: screenshot });
+    const details = { judge_model: v.model, integrity: v.integrity, answer: v.answer, reason: v.reason, problem: v.problem ?? null };
+    if (v.integrity === "canary_mismatch" || v.integrity === "injection_suspected") {
+      return { verdict: "fail", measured_value: `AI opinion: integrity ${v.integrity}`, summary: `AI opinion rejected: ${v.problem}.`, screenshot, details, injectionSuspected: true };
+    }
+    if (v.integrity === "malformed" || !v.answer) {
+      return { verdict: "error", measured_value: null, summary: `AI judge gave no usable answer (${v.problem ?? "unknown"}); this verifier abstains`, screenshot, details };
+    }
+    return {
+      verdict: v.answer === "yes" ? "pass" : "fail",
+      measured_value: `AI opinion: ${v.answer}`,
+      summary: `AI opinion (${v.model}): ${v.answer}. ${v.reason}`,
+      screenshot,
+      details,
+    };
+  } finally {
+    await page.close();
+  }
+};
 
 export const CHECKS: { [K in ChecklistItem["check_type"]]: Check<ItemOf<K>> } = {
   http_status: httpStatus,
@@ -357,7 +384,7 @@ export const CHECKS: { [K in ChecklistItem["check_type"]]: Check<ItemOf<K>> } = 
   mobile_no_overflow: mobileNoOverflow,
   links_ok: linksOk,
   json_schema_valid: jsonSchemaValid,
-  llm_judgement: llmJudgementUnavailable,
+  llm_judgement: llmJudgement,
   client_approval: clientApproval,
 };
 

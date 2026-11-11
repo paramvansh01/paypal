@@ -263,6 +263,22 @@ async function newJobView() {
   f.brief.value = "A small bakery website: home page, menu, a working contact form, mobile friendly and fast.";
   f.checklist.value = JSON.stringify(contract, null, 2);
   const err = el("p", { class: "form-error" });
+  const draft = state.health?.ai
+    ? el("button", { onclick: async () => {
+        err.textContent = "";
+        draft.disabled = true;
+        draft.textContent = "Drafting…";
+        try {
+          const r = await api("POST", "/checklists/generate", { brief: f.brief.value, budget_cents: Math.round(Number(f.budget.value) * 100) });
+          f.checklist.value = JSON.stringify(r.checklist, null, 2);
+          err.textContent = "AI draft loaded below. Review every item before posting: both parties accept exactly this contract.";
+        } catch (e) {
+          err.textContent = e.message;
+        }
+        draft.disabled = false;
+        draft.textContent = "Draft the contract with AI";
+      } }, "Draft the contract with AI")
+    : null;
   const submit = el("button", { class: "primary", onclick: async () => {
     err.textContent = "";
     let checklist;
@@ -294,6 +310,7 @@ async function newJobView() {
       el("label", {}, "Worker"), f.worker,
       el("label", {}, "Budget (USD) ", el("span", { class: "muted" }, "— must equal the contract total")), f.budget,
       el("label", {}, "Contract ", el("span", { class: "muted" }, "— milestones with machine-checkable items. Paths are relative to the URL the worker delivers. The server adds its verifier panel.")),
+      draft ? el("div", { class: "row" }, draft, el("span", { class: "muted" }, "from the brief and budget above")) : null,
       f.checklist,
       el("div", { class: "row dialog" }, submit, el("a", { href: "/", "data-nav": true }, "Cancel")),
       err,

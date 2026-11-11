@@ -2,6 +2,7 @@ import type { Page } from "playwright";
 import type { ChecklistItem } from "../../core/checklist.js";
 import type { Vote } from "../../qaps/leaf.js";
 import type { BrowserSession } from "../browser.js";
+import type { Judge } from "../../llm/judge.js";
 
 /** What one check reports for one checklist item. */
 export interface CheckResult {
@@ -13,6 +14,8 @@ export interface CheckResult {
   screenshot?: Buffer;
   /** Extra structured evidence (console errors, link statuses, …). Kept off the signed leaf; hashed as an artifact. */
   details?: Record<string, unknown>;
+  /** The AI judge's integrity check failed (wrong canary, or it reported text aimed at evaluators): counts as an injection flag. */
+  injectionSuspected?: boolean;
 }
 
 export interface CheckContext {
@@ -22,6 +25,8 @@ export interface CheckContext {
   timeoutMs: number;
   /** Called after every page load, so the tripwire scanner sees every page a check visits. */
   onPageLoaded?: (page: Page, url: string) => Promise<void>;
+  /** This verifier's AI judge for llm_judgement items (its own model). Without one, a person decides. */
+  judge?: Judge;
 }
 
 export type Check<T extends ChecklistItem = ChecklistItem> = (item: T, ctx: CheckContext) => Promise<CheckResult>;

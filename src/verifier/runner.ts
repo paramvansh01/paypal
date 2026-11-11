@@ -8,6 +8,7 @@ import type { BrowserProvider } from "./browser.js";
 import { runCheck, type CheckResult } from "./checks/index.js";
 import type { EvidenceStore } from "./evidence-store.js";
 import { scanPage, type TripwireReport } from "./tripwire.js";
+import type { Judge } from "../llm/judge.js";
 import type { NetworkPolicy } from "./url-guard.js";
 
 /**
@@ -33,6 +34,8 @@ export interface RunVerifierArgs {
   /** Why this slot is not using its planned browser, if it is not. Goes into the signed attestation. */
   fallback?: string;
   judgeModel: string;
+  /** The AI judge for llm_judgement items, using judgeModel. Optional: without it those items go to the client. */
+  judge?: Judge;
   jobId: string;
   contract: Checklist;
   contractHash: string;
@@ -82,6 +85,7 @@ export async function runVerifier(args: RunVerifierArgs): Promise<VerifierRunRes
           session,
           deliverableUrl: args.deliverableUrl,
           timeoutMs: args.checkTimeoutMs,
+          judge: args.judge,
           onPageLoaded: async (page, url) => {
             try {
               scans.push(await scanPage(page));
@@ -94,7 +98,8 @@ export async function runVerifier(args: RunVerifierArgs): Promise<VerifierRunRes
       );
 
       const findings = scans.flatMap((s) => s.findings);
-      const injection = findings.length > 0;
+      const judgeFlag = result.injectionSuspected === true;
+      const injection = findings.length > 0 || judgeFlag;
       const artifacts: Record<string, string> = {};
       if (result.screenshot) artifacts.screenshot_sha256 = args.store.put(result.screenshot, "png").sha256;
       const details = {
@@ -108,7 +113,9 @@ export async function runVerifier(args: RunVerifierArgs): Promise<VerifierRunRes
       const first = findings[0];
       // If a page could not be scanned, this verifier cannot vouch for it: no vote (error), reason recorded.
       const unscanned = !injection && scanErrors.length > 0;
-      const summary = injection
+      const summary = !first && judgeFlag
+        ? result.summary
+        : injection
         ? `Prompt-injection attempt (${first!.techniques.join(" + ")}): "${clip(first!.text, 140)}". ${result.summary}`
         : unscanned
           ? `Tripwire scan failed (${clip(scanErrors[0]!, 200)}), so this verifier abstains. Check said: ${result.summary}`

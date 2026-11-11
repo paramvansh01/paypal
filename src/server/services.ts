@@ -6,7 +6,8 @@ import { ISSUER_ID } from "../qaps/receipt.js";
 import type { PaymentRail } from "../rails/types.js";
 import { EvidenceStore } from "../verifier/evidence-store.js";
 import type { VerificationSummary } from "../verifier/orchestrator.js";
-import { buildVerifier } from "./verifier.js";
+import { buildVerifier, llmFromConfig } from "./verifier.js";
+import type { LlmClient } from "../llm/client.js";
 
 /** Everything the REST API and the MCP server work on. */
 export interface Services {
@@ -17,6 +18,8 @@ export interface Services {
   /** The PayPal rail. Missing until T2.3: lock, confirm and settle then report that. */
   rail?: PaymentRail;
   verify: (db: Db, jobId: string) => Promise<VerificationSummary>;
+  /** The language model (checklist drafts, AI judge). Missing without ANTHROPIC_API_KEY. */
+  llm?: LlmClient;
 }
 
 /** Loads keys, opens the database and builds the verifier quorum from config. Throws ConfigError/KeyError. */
@@ -26,5 +29,6 @@ export function loadServices(config: Config): Services {
   const issuer = loadKeyring([ISSUER_ID], keys).get(ISSUER_ID)!;
   const db = openDb(config.app.databasePath);
   const evidence = new EvidenceStore(config.verifier.evidenceDir);
-  return { db, keyring, issuer, evidence, verify: buildVerifier(config, keyring, evidence) };
+  const llm = llmFromConfig(config);
+  return { db, keyring, issuer, evidence, llm, verify: buildVerifier(config, keyring, evidence, llm) };
 }

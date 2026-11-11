@@ -1,3 +1,4 @@
+import type { Judge } from "../llm/judge.js";
 import { EventEmitter } from "node:events";
 import { and, asc, eq, max } from "drizzle-orm";
 import { contractItems } from "../core/checklist.js";
@@ -36,6 +37,8 @@ export interface VerifyDeps {
   /** Browser for each verifier slot (see panelBrowsers). */
   panel: (verifierIds: string[], deliverableUrl: string) => PanelSlot[];
   judgeModels: string[];
+  /** Builds the AI judge for one model (T3.6). Without it, llm_judgement items go to the client. */
+  judgeFor?: (model: string) => Judge | undefined;
   checkTimeoutMs: number;
   /** Live progress for the UI. Emits "item" (ItemProgress & {jobId, round}) and "run" events. */
   bus?: EventEmitter;
@@ -118,6 +121,7 @@ export async function verifyJob(db: Db, jobId: string, deps: VerifyDeps): Promis
           provider: slot.provider,
           fallback: slot.fallback,
           judgeModel,
+          judge: deps.judgeFor?.(judgeModel),
           jobId,
           contract,
           contractHash,

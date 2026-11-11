@@ -5,6 +5,8 @@ import { DecisionError } from "../core/proof-store.js";
 import { SettlementError } from "../core/settlement.js";
 import { IllegalTransitionError, JobNotFoundError } from "../core/state.js";
 import { VerificationError } from "../verifier/orchestrator.js";
+import { ChecklistGenerationError } from "../llm/checklist-gen.js";
+import { LlmError } from "../llm/client.js";
 
 /** A feature this server is not configured for (no PayPal rail yet, no verifier, no write secret). */
 export class ServiceUnavailable extends Error {
@@ -41,5 +43,7 @@ export function classifyError(err: unknown): ClassifiedError | undefined {
   if (err instanceof ChecklistTamperedError) return { status: 500, error: err.message };
   if (err instanceof RailError) return { status: 502, error: err.message };
   if (err instanceof ServiceUnavailable) return { status: 503, error: err.message };
+  if (err instanceof ChecklistGenerationError) return { status: 422, error: err.message };
+  if (err instanceof LlmError) return { status: 502, error: `Language model: ${err.message}` };
   return undefined;
 }

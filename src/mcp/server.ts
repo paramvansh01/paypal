@@ -26,6 +26,7 @@ import { recordEvent } from "../core/state.js";
 import { JOB_STATUSES } from "../db/schema.js";
 import type { Services } from "../server/services.js";
 import { classifyError, ServiceUnavailable } from "../server/errors.js";
+import { DEFAULT_LLM_MODEL, generateChecklist } from "../llm/checklist-gen.js";
 
 /**
  * T4.1: the Kept MCP server (section 6.8). Every tool calls the same core
@@ -88,7 +89,7 @@ function ok(data: unknown): CallToolResult {
   return { content: [{ type: "text", text: JSON.stringify(structured, null, 2) }], structuredContent: structured };
 }
 
-const STATUS_LABEL: Record<number, string> = { 400: "Invalid input", 403: "Not allowed", 404: "Not found", 409: "Conflict", 500: "Integrity error", 502: "PayPal error", 503: "Unavailable" };
+const STATUS_LABEL: Record<number, string> = { 422: "Could not draft a contract", 400: "Invalid input", 403: "Not allowed", 404: "Not found", 409: "Conflict", 500: "Integrity error", 502: "PayPal error", 503: "Unavailable" };
 
 /** Runs a tool body; known domain errors become tool errors the agent can read and act on. */
 async function run(fn: () => unknown): Promise<CallToolResult> {
@@ -109,6 +110,7 @@ export interface McpDeps {
   issuer?: Services["issuer"];
   rail?: Services["rail"];
   verify?: Services["verify"];
+  llm?: Services["llm"];
 }
 
 export function createMcpServer(config: Config, deps: McpDeps, party: Party): McpServer {
@@ -133,7 +135,7 @@ export function createMcpServer(config: Config, deps: McpDeps, party: Party): Mc
     {
       title: "Post a job",
       description:
-        "As the client, create a job for a worker with a budget and (normally) the checklist contract. Returns the job, including checklist_hash, which both parties then pass to accept_checklist. Without a checklist the job stays DRAFT until propose_checklist.",
+        "As the client, create a job for a worker with a budget and the checklist contract. If you leave out the checklist and this server has a language model, it drafts one from the brief (AI draft: review it before accepting). Returns the job, including the proposed checklist and its checklist_hash, which both parties then pass to accept_checklist. Without a checklist and without a model, the job stays DRAFT until propose_checklist.",
       inputSchema: {
         title: z.string().min(1).max(200),
         brief: z.string().min(1).max(5000).describe("Plain-language description of the work"),
@@ -144,7 +146,17 @@ export function createMcpServer(config: Config, deps: McpDeps, party: Party): Mc
       },
       annotations: write,
     },
-    (args) => run(() => jobView(db, createJob(db, party, args, { rail: config.paypal.rail, quorum: quorum() }))),
+    (args) =>
+      run(async () => {
+        let checklist: unknown = args.checklist;
+        let drafted = false;
+        if (checklist === undefined && deps.llm) {
+          checklist = await generateChecklist(deps.llm, config.llm.model ?? DEFAULT_LLM_MODEL, { brief: args.brief, budgetCents: args.budget_cents, currency: args.currency });
+          drafted = true;
+        }
+        const job = jobView(db, createJob(db, party, { ...args, checklist }, { rail: config.paypal.rail, quorum: quorum() }));
+        return drafted ? { ...job, checklist_source: "AI draft from the brief: review it before accepting" } : job;
+      }),
   );
 
   server.registerTool(

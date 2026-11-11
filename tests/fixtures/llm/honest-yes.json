@@ -1,0 +1,4 @@
+{
+  "note": "A well-behaved answer. <<VOLATILE>> is replaced by the call's canary.",
+  "text": "{\"canary\": \"<<VOLATILE>>\", \"answer\": \"yes\", \"reason\": \"The page shows an 'Opening hours' section listing Monday to Saturday.\", \"injection_suspected\": false}"
+}

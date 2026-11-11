@@ -8,6 +8,7 @@ import type { PaymentRail } from "../rails/types.js";
 import type { VerificationSummary } from "../verifier/orchestrator.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { createMcpServer } from "../mcp/server.js";
+import type { LlmClient } from "../llm/client.js";
 import { apiErrors, apiRouter } from "./api.js";
 import { requireParty } from "./auth.js";
 import { demoRouter } from "./demo.js";
@@ -46,6 +47,8 @@ export interface AppDeps {
   /** Runs the verifier quorum for a job (see buildVerifier in server/verifier.ts). */
   verify?: (db: Db, jobId: string) => Promise<VerificationSummary>;
   evidence?: EvidenceStore;
+  /** Language model for checklist drafts (T3.2). */
+  llm?: LlmClient;
 }
 
 export function createApp(config: Config, deps: AppDeps = {}): Express {
@@ -61,6 +64,8 @@ export function createApp(config: Config, deps: AppDeps = {}): Express {
       /** Whether money really moves: the PayPal sandbox rail, the OFFLINE stand-in, or nothing yet. */
       money: deps.rail ? (isOfflineRail(deps.rail) ? "offline" : "paypal_sandbox") : "none",
       demo_mode: config.app.demoMode,
+      /** Whether an AI model is configured (contract drafts, AI judge). */
+      ai: !!deps.llm,
     });
   });
 
@@ -138,7 +143,7 @@ export function createApp(config: Config, deps: AppDeps = {}): Express {
   if (deps.db && deps.keyring) {
     const { db, keyring } = deps;
     app.post("/mcp", requireParty(db, config.app.mcpAuthToken), (req, res, next) => {
-      const server = createMcpServer(config, { db, keyring, issuer: deps.issuer, rail: deps.rail, verify: deps.verify }, req.party!);
+      const server = createMcpServer(config, { db, keyring, issuer: deps.issuer, rail: deps.rail, verify: deps.verify, llm: deps.llm }, req.party!);
       const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined, enableJsonResponse: true });
       res.on("close", () => {
         void transport.close();
@@ -160,7 +165,7 @@ export function createApp(config: Config, deps: AppDeps = {}): Express {
 
   // The job lifecycle API (T2.6).
   if (deps.db && deps.keyring) {
-    app.use(apiRouter(config, { db: deps.db, keyring: deps.keyring, rail: deps.rail, verify: deps.verify }));
+    app.use(apiRouter(config, { db: deps.db, keyring: deps.keyring, rail: deps.rail, verify: deps.verify, llm: deps.llm }));
   }
 
   // Demo deliverables (good / flawed / sneaky) and the tiny API their contact form posts to.

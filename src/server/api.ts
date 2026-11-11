@@ -29,6 +29,8 @@ import type { PaymentRail } from "../rails/types.js";
 import type { VerificationSummary } from "../verifier/orchestrator.js";
 import { requireParty } from "./auth.js";
 import { classifyError, ServiceUnavailable } from "./errors.js";
+import type { LlmClient } from "../llm/client.js";
+import { DEFAULT_LLM_MODEL, generateChecklist } from "../llm/checklist-gen.js";
 import { eq } from "drizzle-orm";
 
 /**
@@ -51,6 +53,7 @@ import { eq } from "drizzle-orm";
  *   GET  /jobs/:id/events                   the append-only event log (timeline)
  *   GET  /parties                           parties (ID, kind, name; no emails)
  *   GET  /me                                the party a token belongs to
+ *   POST /checklists/generate               AI draft of a contract from {brief, budget_cents, currency} (needs an LLM key)
  */
 
 export interface ApiDeps {
@@ -60,6 +63,8 @@ export interface ApiDeps {
   rail?: PaymentRail;
   /** Runs the verifier quorum for a job. Without it, verify answers 503. */
   verify?: (db: Db, jobId: string) => Promise<VerificationSummary>;
+  /** Language model for checklist drafts. Without it, /checklists/generate answers 503. */
+  llm?: LlmClient;
 }
 
 const asyncRoute =
@@ -72,6 +77,7 @@ const AcceptInput = z.strictObject({ checklist_hash: z.string().regex(/^[0-9a-f]
 const SubmitInput = z.strictObject({ deliverable_url: z.string().min(1).max(2000) });
 const CancelInput = z.strictObject({ reason: z.string().max(500).optional() });
 const ChecklistBody = z.strictObject({ checklist: z.unknown() });
+const GenerateInput = z.strictObject({ brief: z.string().trim().min(1).max(5000), budget_cents: z.number().int().positive(), currency: z.string().regex(/^[A-Z]{3}$/).default("USD") });
 const ItemParams = z.object({ m: z.coerce.number().int().min(0), i: z.coerce.number().int().min(0) });
 
 export function apiRouter(config: Config, deps: ApiDeps): Router {
@@ -200,6 +206,17 @@ export function apiRouter(config: Config, deps: ApiDeps): Router {
   r.get("/parties", (_req, res) => {
     res.json({ parties: db.select({ id: parties.id, kind: parties.kind, display_name: parties.displayName }).from(parties).orderBy(parties.id).all() });
   });
+
+  r.post(
+    "/checklists/generate",
+    auth,
+    asyncRoute(async (req, res) => {
+      if (!deps.llm) throw new ServiceUnavailable("No language model is configured on this server (set ANTHROPIC_API_KEY).");
+      const input = GenerateInput.parse(req.body);
+      const checklist = await generateChecklist(deps.llm, config.llm.model ?? DEFAULT_LLM_MODEL, { brief: input.brief, budgetCents: input.budget_cents, currency: input.currency });
+      res.json({ checklist, generated_by: config.llm.model ?? DEFAULT_LLM_MODEL, note: "An AI draft: both parties must review and accept it." });
+    }),
+  );
 
   r.get("/me", auth, (req, res) => {
     res.json({ party_id: req.party!.id, kind: req.party!.kind, display_name: req.party!.displayName });

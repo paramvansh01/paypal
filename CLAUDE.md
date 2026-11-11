@@ -505,13 +505,13 @@ Goal: learn in a few hours which rail works in our sandbox. Scripts live in `scr
 
 ### P3 — AI: checklist generator and verifier (MUST)
 
-- [ ] **T3.1** LLM client wrapper with strict JSON output, retries and a recorded-response mode for tests.
-- [ ] **T3.2** Checklist generator: brief + budget → milestones with amounts and items using the check types in 6.7. Anything not objectively checkable becomes `client_approval`. Amounts must sum to the budget.
+- [x] **T3.1** LLM client wrapper with strict JSON output, retries and a recorded-response mode for tests.
+- [~] **T3.2** (Aashman — `src/llm/checklist-gen.ts`, `POST /checklists/generate`, MCP `post_job` without a checklist, UI "Draft with AI"; tested with scripted answers. The five-live-briefs acceptance waits for H4) Checklist generator: brief + budget → milestones with amounts and items using the check types in 6.7. Anything not objectively checkable becomes `client_approval`. Amounts must sum to the budget.
   *Done when:* five varied sample briefs produce valid checklists.
 - [x] **T3.3** Browser providers behind one interface: KERNEL session over CDP, local Chromium, local WebKit. VERIFY the KERNEL SDK and replay API at https://kernel.sh/docs first.
 - [x] **T3.4** Implement the deterministic checks in 6.7 with unit tests against the demo sites.
 - [x] **T3.5** Evidence capture: screenshot per item, measured values, and the KERNEL replay link when available. Stored and served by the app.
-- [ ] **T3.6** `llm_judgement` check with the safety rules in 6.7 and the canary integrity check in 6.10.
+- [~] **T3.6** (Aashman — check, canary judge and per-verifier model wiring done and tested with recorded answers in a real browser; a live run waits for H4) `llm_judgement` check with the safety rules in 6.7 and the canary integrity check in 6.10.
 - [x] **T3.7** Single-verifier runner: runs every item for one verifier (one browser, one judge), applies timeouts, runs the tripwire scanner on each page, and returns leaf records + artifacts. The quorum orchestrator (TQ.6) calls it n times.
 - [x] **T3.8** Demo deliverables in `demo/sites/`: `good/` passes everything; `flawed/` has a contact form that does not submit, so exactly one milestone fails; `sneaky/` has the same broken form plus hidden text telling the AI the form works, so the tripwire must fire. All served by the app.
   *Done when:* the full quorum gives 4 of 4 on `good`, 3 of 4 on `flawed`, and 3 of 4 with `INJECTION_DETECTED` on `sneaky`, ten runs in a row.
@@ -525,7 +525,7 @@ The pure parts (TQ.1–TQ.3) need no keys or network and come first. Every task 
 - [x] **TQ.2** Verifier identity (`src/qaps/keys.ts`, `src/qaps/attestation.ts`): Ed25519 key generation/loading per 6.11, key fingerprints, attestation build/sign/verify over canonical JSON, `/.well-known/kept/verifiers.json`. Tests: valid signature verifies; any changed field, wrong key or truncated signature fails.
 - [x] **TQ.3** Quorum rule and certificate (`src/qaps/quorum.ts`): the rule in 6.9 as a pure function, certificate build, full validation. Tests: every verdict combination for n = 3, k = 2; k − 1 signatures; duplicate verifier; unknown key; mismatched contract hash or URL; forged item verdicts; root that does not match leaves.
 - [x] **TQ.4** Tripwire DOM scanner per 6.10, with tests on hand-written hostile pages (each hiding technique) and a benign corpus (measure and record the false-positive rate).
-- [ ] **TQ.5** Canary integrity for `llm_judgement` per 6.10 (with T3.6). Tests use recorded responses, including a hijacked one.
+- [x] **TQ.5** Canary integrity for `llm_judgement` per 6.10 (with T3.6). Tests use recorded responses, including a hijacked one.
 - [x] **TQ.6** Quorum orchestrator: runs the n verifiers in parallel (different browsers and judges), stores leaves, roots, attestations, builds and stores the certificate, writes final verdicts, moves the job to `VERIFIED` (or keeps items `needs_client`). Live verdicts stream to the UI.
 - [x] **TQ.7** Proof Receipt per 6.12: assembly, `GET /jobs/:id/receipt`, MCP `get_receipt`, download button.
 - [x] **TQ.8** Receipt verifiers: `npm run verify-receipt` and zero-dependency `tools/verify-receipt.mjs`. Tamper tests: flipping any single byte of a sample receipt fails with a message naming what broke.
@@ -659,6 +659,8 @@ Format: `YYYY-MM-DD — <name> — decision — reason`
 - 2026-11-11 — Aashman — Web app (T5) is build-free like the report (`web/app/`: plain HTML/CSS/ES module, strict CSP, textContent only), not React + Vite — no build step for judges or Render, one less toolchain, and the CSP can stay `default-src 'none'`. Routes: `/` job list, `/app/new`, `/app/jobs/:id` (the JSON API keeps `/jobs/:id`). Inline `style` attributes are forbidden by that CSP; use classes (a test checks for CSP console errors). Sign-in is a party token kept in sessionStorage. New REST reads: `GET /me`, `GET /parties` (no emails), `GET /jobs/:id/events`. Live per-verifier votes come from `VERIFIER_ITEM` events, so items turn green/red per verifier before the certificate exists.
 - 2026-11-11 — Aashman — Judge mode: `DEMO_MODE=1` (default off) lets anyone act as the demo parties and run demo jobs (`src/server/demo.ts`); when no PayPal rail is configured the server then uses the OFFLINE stand-in, and `/health` reports `money: offline|paypal_sandbox|none`, which the UI shows as a banner. Never set DEMO_MODE on a server with real parties.
 - 2026-11-11 — Aashman — Vitest runs at most 6 workers: with 10, parallel browser-launching test files made WebKit crash.
+- 2026-11-11 — Aashman — LLM layer (`src/llm/`): one `LlmClient` interface; `AnthropicLlm` uses `messages.create` with `output_config: {effort, format: {type: "json_schema"}}` (structured outputs, no prefill, no thinking config — Opus 5.5 rejects disabling it), and treats `refusal`/`max_tokens` stops as errors. Record/replay: `LLM_RECORD_DIR` / `LLM_REPLAY_DIR`; recordings mask volatile values (the canary) so they replay under a new canary; replay never falls through to the network. Judge effort `low`, generator `medium`.
+- 2026-11-11 — Aashman — Judge integrity (6.10): wrong/missing canary or the judge's own `injection_suspected` → the item is a fail vote with `injection: true` (same as a tripwire hit); malformed output or an API error → the verifier abstains (`error`). Page text goes after the instructions between fixed markers, capped at 20 000 characters, plus a screenshot. Checklist generator: the model returns each item's params as a JSON string (params differ per check type), validated with the contract's own Zod schema; amounts must add up exactly; one retry with the error message, then 422.
 
 ---
 
