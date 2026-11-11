@@ -11,13 +11,13 @@
 ## 0. LIVE STATE (always current — update in every commit)
 
 ```
-Phase:              P4 — MCP server and agents (QAPS core done locally; PayPal spikes still blocked on H2–H3)
-Next action:        T4.2 — check the MCP server with the MCP Inspector and one real client (Claude Code: `claude mcp add`), and put the exact connection steps in the README.
-Suggested order:    T4.2 → T4.4 → T5.1 (all need no keys). With H2–H3 done, jump to T1.1 proof + P1 spikes. With H4, T3.1/T3.2/T3.6/TQ.5.
-Active session:     Aashman — 2026-11-10T13:38Z
-Last updated:       2026-11-11 (Aashman: T4.1 done)
+Phase:              P1 — PayPal sandbox proof. Every task that needs no keys is done (MUST and SHOULD); the rest waits on human tasks H2–H4, H7–H11.
+Next action:        T1.1 — with H2 keys in .env: `npm run spike:token`, then `npm run spike:rail -- --rail auth_capture --write` (H3 accounts) → T1.2/T1.6, then mark T2.3 and run `npm run demo -- --site all --runs 3` on the real rail (T4.5).
+Suggested order:    H2–H3 → T1.1/T1.2/T1.6 (spike:rail) → T2.3 proof → T4.5 → H7 + T7.2 deploy → H4 → T3.2/T3.6 live → T4.2 real client → H8 → T8.3 → H10/H11.
+Active session:     none
+Last updated:       2026-11-11 (Aashman: T4.1–T4.4, T5.1–T5.4, T3.1, TQ.5, TQ.11, TQ.12, T6.x, T7.4, T8.1/T8.2/T8.4/T8.5 done; rails, LLM, Render, submission drafted)
 Payment rail:       UNDECIDED (decided by the spike in P1)
-Blockers:           H2–H3 (PayPal sandbox) block T1.1 proof and all of P1, T2.3, T2.4, TQ.9 binding. H4 (Anthropic + KERNEL keys) blocks T3.1/T3.2/T3.6/TQ.5 live runs and the KERNEL browser path.
+Blockers:           H2–H3 (PayPal sandbox app + accounts) block every real-money proof: T1.x, T2.3/T2.4 proof, T4.5 real rail, TQ.9 binding. H4 (Anthropic + KERNEL keys) blocks live T3.2/T3.6. H7 (Render) blocks T7.2. Claude Code login on Aashman's Mac expired, which blocks the T4.2 real-client check. H8 blocks T8.3 final.
 Hosted demo URL:    —
 Repo URL:           https://github.com/paramvansh01/paypal (public, branch main)
 Submission deadline: — (FILL IN: date, time, timezone)
@@ -751,3 +751,10 @@ In flight: nothing
 Learned:   The SDK 1.x registerTool takes Zod 4 raw shapes directly. `npm run` prints a banner on stdout, which breaks stdio MCP: use `npm run --silent mcp` or call tsx directly. There is also a split v2 SDK (`@modelcontextprotocol/server` 2.x); we stay on the documented 1.x package.
 Next:      T4.2
 Blockers:  H2–H3 (PayPal), H4 (Anthropic + KERNEL keys), H5 (`.env` on Aashman's Mac).
+
+### 2026-11-11 09:40 IST — Aashman (handoff)
+Done:      T4.1 MCP server (17 tools, HTTP + stdio); T4.3/T4.4 MCP agents; T4.5 demo (offline rail, 9/9); T5.1–T5.4 web app + judge mode; T3.1 LLM client + record/replay; TQ.5 canary judge; T3.2/T3.6 code (scripted/recorded tests); T2.3/T2.4/T2.7 PayPal rails + webhooks against published schemas (fake-PayPal tests) + `spike:rail`; T6.1/T6.2/T6.4; T7.1 Render Blueprint (Docker); T7.4 Postman (newman-verified); TQ.11 prior art; TQ.12 in-browser receipt check; T8.1 README, T8.2 fresh clone, T8.4 video script, T8.5 secrets/licence; T8.3 drafted. 629+ tests green.
+In flight: nothing. Partly done, waiting on keys: T1.1, T2.3/T2.4/T2.7, T3.2, T3.6, T4.2, T4.5, T5.3 (fees), T7.1 (image build), T7.3 (sandbox login text), T8.3.
+Learned:   (1) Vitest needs ≤6 workers or WebKit crashes under parallel browser tests. (2) The web pages' CSP forbids inline `style=`; use classes (a test catches CSP console errors). (3) `npm run` prints a banner on stdout, so stdio MCP needs `--silent` or direct tsx. (4) PayPal OpenAPI schemas are at developer.paypal.com/api/<name>/v<n>/schema.json and are the reliable field reference. (5) The standalone receipt verifier runs in browsers via the repeat-until-settled WebCrypto trick. (6) This Mac has no Docker; the Claude CLI login here has expired.
+Next:      T1.1 (after H2–H3)
+Blockers:  H2–H4, H7–H11 (see Live State).
