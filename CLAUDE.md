@@ -12,7 +12,7 @@
 
 ```
 Phase:              P1 — PayPal sandbox proof. Every task that needs no keys is done (MUST and SHOULD); the rest waits on human tasks H2–H4, H7–H11.
-Next action:        T1.1 — with H2 keys in .env: `npm run spike:token`, then `npm run spike:rail -- --rail auth_capture --write` (H3 accounts) → T1.2/T1.6, then mark T2.3 and run `npm run demo -- --site all --runs 3` on the real rail (T4.5).
+Next action:        T1.1 (full remaining plan: docs/NEXT_STEPS.md) — with H2 keys in .env: `npm run spike:token`, then `npm run spike:rail -- --rail auth_capture --write` (H3 accounts) → T1.2/T1.6, then mark T2.3 and run `npm run demo -- --site all --runs 3` on the real rail (T4.5).
 Suggested order:    H2–H3 → T1.1/T1.2/T1.6 (spike:rail) → T2.3 proof → T4.5 → H7 + T7.2 deploy → H4 → T3.2/T3.6 live → T4.2 real client → H8 → T8.3 → H10/H11.
 Active session:     none
 Last updated:       2026-11-11 (Aashman: T4.1–T4.4, T5.1–T5.4, T3.1, TQ.5, TQ.11, TQ.12, T6.x, T7.4, T8.1/T8.2/T8.4/T8.5 done; rails, LLM, Render, submission drafted)
