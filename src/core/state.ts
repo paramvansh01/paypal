@@ -19,8 +19,10 @@ export const TRANSITIONS: Record<JobStatus, readonly JobStatus[]> = {
   DELIVERED: ["VERIFYING", "AUTO_RELEASED"],
   // VERIFYING → DELIVERED lets a crashed or timed-out verifier run be retried.
   VERIFYING: ["VERIFIED", "DELIVERED", "AUTO_RELEASED"],
-  VERIFIED: ["SETTLED", "DISPUTED", "AUTO_RELEASED"],
-  DISPUTED: ["SETTLED", "AUTO_RELEASED"],
+  // VERIFIED → DELIVERED: the worker resubmits once after a failed milestone (T6.4).
+  VERIFIED: ["SETTLED", "DISPUTED", "DELIVERED", "AUTO_RELEASED"],
+  // DISPUTED → VERIFIED: the party who opened the dispute withdraws it (T6.2).
+  DISPUTED: ["VERIFIED", "SETTLED", "AUTO_RELEASED"],
   SETTLED: [],
   CANCELLED: [],
   AUTO_RELEASED: [],

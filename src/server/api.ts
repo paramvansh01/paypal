@@ -9,6 +9,9 @@ import {
   cancelJob,
   confirmFunds,
   createJob,
+  disputeJob,
+  resubmitWork,
+  withdrawDispute,
   DecisionInput,
   jobEvents,
   jobView,
@@ -49,6 +52,9 @@ import { eq } from "drizzle-orm";
  *   POST /jobs/:id/verify[?wait=1]          either party: runs the verifier quorum (202, or the summary with wait)
  *   POST /jobs/:id/items/:m/:i/decision     client decides an item the quorum left to a person
  *   POST /jobs/:id/settle                   either party: re-verifies, then releases/refunds on PayPal
+ *   POST /jobs/:id/dispute {reason}         either party, VERIFIED → DISPUTED (settlement paused)
+ *   POST /jobs/:id/dispute/withdraw         the party who disputed, DISPUTED → VERIFIED
+ *   POST /jobs/:id/resubmit {deliverable_url}  worker, once, after a failed milestone: VERIFIED → DELIVERED
  *   GET  /jobs/:id/ledger                   money view
  *   GET  /jobs/:id/events                   the append-only event log (timeline)
  *   GET  /parties                           parties (ID, kind, name; no emails)
@@ -78,6 +84,7 @@ const SubmitInput = z.strictObject({ deliverable_url: z.string().min(1).max(2000
 const CancelInput = z.strictObject({ reason: z.string().max(500).optional() });
 const ChecklistBody = z.strictObject({ checklist: z.unknown() });
 const GenerateInput = z.strictObject({ brief: z.string().trim().min(1).max(5000), budget_cents: z.number().int().positive(), currency: z.string().regex(/^[A-Z]{3}$/).default("USD") });
+const DisputeInput = z.strictObject({ reason: z.string().trim().min(1).max(2000) });
 const ItemParams = z.object({ m: z.coerce.number().int().min(0), i: z.coerce.number().int().min(0) });
 
 export function apiRouter(config: Config, deps: ApiDeps): Router {
@@ -194,6 +201,23 @@ export function apiRouter(config: Config, deps: ApiDeps): Router {
       res.json({ settlement: report, job: jobView(db, jobId) });
     }),
   );
+
+  r.post("/jobs/:id/dispute", auth, (req, res) => {
+    const { reason } = DisputeInput.parse(req.body);
+    disputeJob(db, id(req), req.party!, reason);
+    res.json(jobView(db, id(req)));
+  });
+
+  r.post("/jobs/:id/dispute/withdraw", auth, (req, res) => {
+    withdrawDispute(db, id(req), req.party!);
+    res.json(jobView(db, id(req)));
+  });
+
+  r.post("/jobs/:id/resubmit", auth, (req, res) => {
+    const { deliverable_url } = SubmitInput.parse(req.body);
+    resubmitWork(db, id(req), req.party!, deliverable_url);
+    res.json(jobView(db, id(req)));
+  });
 
   r.get("/jobs/:id/ledger", (req, res) => {
     res.json(ledger(db, id(req)));

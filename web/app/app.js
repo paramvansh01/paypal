@@ -474,6 +474,22 @@ function actionPanel(job, role) {
       if (open.length) kids.push(el("p", {}, role === "client" ? `${open.length} item(s) need your decision (see the contract below) before settling.` : `Waiting for the client to decide ${open.length} item(s).`));
       else kids.push(el("p", {}, "Verified. Settling re-checks the contract fingerprint and every verifier signature, then releases passed milestones and refunds failed ones."), act("Settle on PayPal", () => post("/settle")));
     }
+    if (s === "VERIFIED") {
+      const failed = job.milestones.some((m) => m.outcome === "failed");
+      if (role === "worker" && failed && job.resubmissions_left > 0) {
+        const url = el("input", { type: "url", value: job.deliverable_url ?? "" });
+        kids.push(
+          el("p", {}, "A milestone failed. You may fix the work and resubmit once before settlement: the whole contract is checked again."),
+          el("label", {}, "Fixed deliverable URL"), url,
+          el("div", { class: "row dialog" }, act("Resubmit for a new verification", () => post("/resubmit", { deliverable_url: url.value }), "")),
+        );
+      }
+      const reason = el("input", { type: "text", placeholder: "Why you disagree with the verdicts", class: "note" });
+      kids.push(el("details", { class: "dialog" }, el("summary", {}, "Dispute before settlement"),
+        el("p", { class: "muted fine" }, "Pauses settlement; the money stays held by PayPal. Only you can withdraw your dispute. Otherwise PayPal's hold limit applies."),
+        el("div", { class: "row" }, reason, act("Open a dispute", () => post("/dispute", { reason: reason.value || "No reason given" }), "danger small"))));
+    }
+    if (s === "DISPUTED") kids.push(el("p", {}, "Disputed: settlement is paused and the money stays held. The evidence report shows every verifier's evidence."), act("Withdraw my dispute", () => post("/dispute/withdraw"), ""));
     if (s === "SETTLED") kids.push(el("p", {}, "Settled. The Proof Receipt below proves why each milestone was paid or refunded."));
     if (role === "client" && ["DRAFT", "CHECKLIST_PROPOSED", "AGREED", "FUNDING_PENDING"].includes(s)) kids.push(el("div", { class: "dialog" }, act("Cancel job", () => post("/cancel", {}), "danger small")));
   }
@@ -502,8 +518,18 @@ function moneyPanel(job, ledger) {
         el("td", { class: "mono fine" }, m.paypal.release_id ?? m.paypal.refund_id ?? m.paypal.capture_id ?? "—"),
       ))),
     )),
+    job.hold ? holdNote(job.hold) : null,
     el("p", { class: "muted fine" }, "Amounts are gross. PayPal deducts its fee on the worker's side; fee and net appear here once the PayPal rail reports them."),
   );
+}
+
+/** T6.1: when PayPal moves the held money on its own, whatever Kept does. */
+function holdNote(hold) {
+  const ms = new Date(hold.expires_at).getTime() - Date.now();
+  const days = Math.floor(ms / 86_400_000);
+  const hours = Math.floor((ms % 86_400_000) / 3_600_000);
+  const left = ms <= 0 ? "now" : `in ${days} day${days === 1 ? "" : "s"} ${hours} h`;
+  return el("p", { class: "hold" }, el("b", {}, `Hold limit: ${left}`), ` (${new Date(hold.expires_at).toLocaleString()}). `, hold.rule);
 }
 
 function stat(label, value) {
@@ -580,7 +606,7 @@ const EVENT = {
   JOB_POSTED: "Job posted", CHECKLIST_REVISED: "Contract revised", CHECKLIST_ACCEPTED: "Contract accepted", STATUS_CHANGED: "Status",
   VERIFICATION_REQUESTED: "Verification requested", INJECTION_DETECTED: "Prompt-injection attempt caught", INJECTION_SUSPECTED: "Lone injection flag (outvoted)",
   CLIENT_DECISION: "Client decided an item", MILESTONE_RELEASED: "Milestone released", MILESTONE_REFUNDED: "Milestone refunded",
-  SETTLEMENT_STARTED: "Settlement started", SETTLEMENT_REFUSED: "Settlement refused", VERIFICATION_ERROR: "Verification error",
+  SETTLEMENT_STARTED: "Settlement started", WORK_RESUBMITTED: "Worker resubmitted the work", PAYPAL_WEBHOOK: "PayPal notification (verified)", SETTLEMENT_REFUSED: "Settlement refused", VERIFICATION_ERROR: "Verification error",
 };
 
 function timelinePanel(events) {

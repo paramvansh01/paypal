@@ -11,6 +11,9 @@ import {
   cancelJob,
   confirmFunds,
   createJob,
+  disputeJob,
+  resubmitWork,
+  withdrawDispute,
   jobView,
   listJobs,
   lockFunds,
@@ -47,6 +50,9 @@ export const MCP_TOOLS = [
   "verify",
   "approve_item",
   "settle",
+  "dispute",
+  "withdraw_dispute",
+  "resubmit_work",
   "get_job",
   "list_jobs",
   "get_receipt",
@@ -300,6 +306,48 @@ export function createMcpServer(config: Config, deps: McpDeps, party: Party): Mc
         assertParty(db, job_id, party, "settle it");
         const settlement = await settleJob(db, job_id, { rail: needRail(), loadProof: loadProofFromDb, actor: party.id });
         return { settlement, job: jobView(db, job_id) };
+      }),
+  );
+
+  server.registerTool(
+    "dispute",
+    {
+      title: "Dispute before settlement",
+      description:
+        "Either party, once VERIFIED and before settling: pause settlement because you disagree with the verdicts. The money stays held by PayPal and the evidence report and receipt stay available. Only you can withdraw your dispute; otherwise PayPal's hold limit applies (see get_job.hold).",
+      inputSchema: { job_id: jobId, reason: z.string().min(1).max(2000) },
+      annotations: write,
+    },
+    ({ job_id, reason }) =>
+      run(() => {
+        disputeJob(db, job_id, party, reason);
+        return jobView(db, job_id);
+      }),
+  );
+
+  server.registerTool(
+    "withdraw_dispute",
+    { title: "Withdraw your dispute", description: "The party who opened a dispute withdraws it; the job returns to VERIFIED and can be settled.", inputSchema: { job_id: jobId }, annotations: write },
+    ({ job_id }) =>
+      run(() => {
+        withdrawDispute(db, job_id, party);
+        return jobView(db, job_id);
+      }),
+  );
+
+  server.registerTool(
+    "resubmit_work",
+    {
+      title: "Resubmit once after a failed milestone",
+      description:
+        "As the worker, after verification failed a milestone and before settlement: submit a fixed deliverable once. The whole contract is verified again in a new round (earlier passes are not carried over) and the client's earlier item decisions lapse. Then call verify.",
+      inputSchema: { job_id: jobId, deliverable_url: z.string().url().max(2000) },
+      annotations: write,
+    },
+    ({ job_id, deliverable_url }) =>
+      run(() => {
+        resubmitWork(db, job_id, party, deliverable_url);
+        return jobView(db, job_id);
       }),
   );
 

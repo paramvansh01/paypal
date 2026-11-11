@@ -260,6 +260,16 @@ export async function confirmFunds(db: Db, jobId: string, party: Party, rail: Pa
 export function submitWork(db: Db, jobId: string, party: Party, deliverableUrl: string): void {
   const job = loadJob(db, jobId);
   requireRole(job, party, ["worker"], "submit work");
+  const url = checkDeliverableUrl(deliverableUrl);
+  transition(db, jobId, "DELIVERED", {
+    actor: party.id,
+    expectedFrom: "FUNDED",
+    set: { deliverableUrl: url },
+    payload: { deliverable_url: url },
+  });
+}
+
+function checkDeliverableUrl(deliverableUrl: string): string {
   let url: URL;
   try {
     url = new URL(deliverableUrl);
@@ -268,12 +278,7 @@ export function submitWork(db: Db, jobId: string, party: Party, deliverableUrl: 
   }
   if (url.protocol !== "http:" && url.protocol !== "https:") throw new JobInputError("deliverable_url must be http(s)");
   if (url.username || url.password) throw new JobInputError("deliverable_url must not contain credentials");
-  transition(db, jobId, "DELIVERED", {
-    actor: party.id,
-    expectedFrom: "FUNDED",
-    set: { deliverableUrl: url.href },
-    payload: { deliverable_url: url.href },
-  });
+  return url.href;
 }
 
 /** Either party may start verification (the verifiers are neutral; who asks does not matter). */
@@ -293,6 +298,81 @@ export function assertClient(db: Db, jobId: string, party: Party, action: string
 }
 export function assertParty(db: Db, jobId: string, party: Party, action: string): void {
   requireRole(loadJob(db, jobId), party, ["client", "worker"], action);
+}
+
+// ---------- disputes, resubmission, hold limits (T6) ----------
+
+/** Either party disputes a verified job before settlement: money stays held, the evidence report stays available. */
+export function disputeJob(db: Db, jobId: string, party: Party, reason: string): void {
+  const job = loadJob(db, jobId);
+  requireRole(job, party, ["client", "worker"], "dispute it");
+  transition(db, jobId, "DISPUTED", { actor: party.id, expectedFrom: "VERIFIED", payload: { reason } });
+}
+
+/** Only the party who opened the dispute can withdraw it; the job goes back to VERIFIED and can be settled. */
+export function withdrawDispute(db: Db, jobId: string, party: Party): void {
+  const job = loadJob(db, jobId);
+  requireRole(job, party, ["client", "worker"], "withdraw a dispute");
+  const opened = db
+    .select()
+    .from(events)
+    .where(and(eq(events.jobId, jobId), eq(events.type, "STATUS_CHANGED")))
+    .orderBy(desc(events.id))
+    .all()
+    .find((e) => e.payload?.to === "DISPUTED");
+  if (job.status !== "DISPUTED" || !opened) throw new JobInputError(`job ${jobId} is ${job.status}; there is no open dispute`);
+  if (opened.actor !== party.id) throw new ForbiddenError(`Only the party who opened the dispute (${opened.actor}) can withdraw it.`);
+  transition(db, jobId, "VERIFIED", { actor: party.id, expectedFrom: "DISPUTED", payload: { dispute_withdrawn: true } });
+}
+
+export const MAX_RESUBMISSIONS = 1;
+
+/**
+ * The worker resubmits once after a milestone failed, before settlement (T6.4).
+ * The whole contract is verified again in a new round (the deliverable changed,
+ * so earlier passes are not carried over), and the client's earlier decisions
+ * lapse (they were about the old delivery; they stay in the event log).
+ */
+export function resubmitWork(db: Db, jobId: string, party: Party, deliverableUrl: string): void {
+  const job = loadJob(db, jobId);
+  requireRole(job, party, ["worker"], "resubmit work");
+  if (job.status !== "VERIFIED") throw new JobInputError(`job ${jobId} is ${job.status}; resubmission is possible only after verification and before settlement`);
+  const view = jobView(db, jobId);
+  if (!view.milestones.some((m) => m.outcome === "failed")) throw new JobInputError("no milestone failed, so there is nothing to resubmit");
+  const used = db.select().from(events).where(and(eq(events.jobId, jobId), eq(events.type, "WORK_RESUBMITTED"))).all().length;
+  if (used >= MAX_RESUBMISSIONS) throw new JobInputError(`the worker may resubmit at most ${MAX_RESUBMISSIONS} time(s), and already has`);
+  const url = checkDeliverableUrl(deliverableUrl);
+  const lapsed = db.select().from(clientDecisions).where(eq(clientDecisions.jobId, jobId)).all();
+  db.transaction((tx) => {
+    tx.delete(clientDecisions).where(eq(clientDecisions.jobId, jobId)).run();
+  });
+  recordEvent(db, jobId, "WORK_RESUBMITTED", {
+    actor: party.id,
+    payload: { deliverable_url: url, previous_url: job.deliverableUrl, lapsed_decisions: lapsed.map(({ m, i, decision }) => ({ m, i, decision })) },
+  });
+  transition(db, jobId, "DELIVERED", { actor: party.id, expectedFrom: "VERIFIED", set: { deliverableUrl: url }, payload: { deliverable_url: url, resubmission: true } });
+}
+
+/** How long PayPal holds funds on each rail before they move without Kept (CLAUDE.md 6.5, 7). */
+export const HOLD_LIMIT_DAYS: Record<RailName, number> = { delayed_disbursement: 28, auth_capture: 29 };
+export const HOLD_RULE: Record<RailName, string> = {
+  delayed_disbursement: "PayPal disburses held funds to the worker automatically after 28 days, so a silent client cannot block payment.",
+  auth_capture: "A PayPal authorization is honored for 3 days and expires after 29; if it expires uncaptured the hold is released to the client.",
+};
+
+function holdInfo(db: Db, job: JobRow) {
+  if (!["FUNDED", "DELIVERED", "VERIFYING", "VERIFIED", "DISPUTED"].includes(job.status)) return null;
+  const funded = db
+    .select()
+    .from(events)
+    .where(and(eq(events.jobId, job.id), eq(events.type, "STATUS_CHANGED")))
+    .orderBy(asc(events.id))
+    .all()
+    .find((e) => e.payload?.to === "FUNDED");
+  if (!funded) return null;
+  const days = HOLD_LIMIT_DAYS[job.rail];
+  const expires = new Date(new Date(funded.createdAt).getTime() + days * 86_400_000);
+  return { funded_at: funded.createdAt, expires_at: expires.toISOString(), limit_days: days, rule: HOLD_RULE[job.rail] };
 }
 
 // ---------- read models ----------
@@ -362,6 +442,9 @@ export function jobView(db: Db, jobId: string) {
     paypal_order_id: job.paypalOrderId,
     deliverable_url: job.deliverableUrl,
     created_at: job.createdAt,
+    /** While PayPal holds the money: when it moves without Kept (T6.1). */
+    hold: holdInfo(db, job),
+    resubmissions_left: Math.max(0, MAX_RESUBMISSIONS - db.select().from(events).where(and(eq(events.jobId, job.id), eq(events.type, "WORK_RESUBMITTED"))).all().length),
     milestones: ms.map((m) => ({
       m: m.position,
       id: m.id,
