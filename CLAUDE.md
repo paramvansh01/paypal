@@ -68,7 +68,7 @@ Things we must say carefully (judges will probe every claim):
 - Never call it "escrow". Say "pay on proof". PayPal holds the funds, Kept does not.
 - In the demo all n verifiers run on our server. The protocol lets independent operators run them; we do not claim a decentralised network. Never say "blockchain", "zero-knowledge" or "decentralised".
 - Tripwires **reduce** prompt-injection risk; they do not eliminate it. Deterministic checks decide everything they can; the AI only answers narrow yes/no questions, labelled "AI opinion".
-- Only say "nobody else does this" in the exact words recorded in `docs/PRIOR_ART.md` (task TQ.11). Until then say "a new payment primitive".
+- Novelty: use only the sentence in `docs/PRIOR_ART.md`. AI-verified escrow already exists on crypto rails (single judge or human), so never say "first", "only" or "nobody else". What is new is the combination: a k-of-n verifier quorum with tripwires and Merkle-signed evidence, settling on PayPal, with an offline-verifiable receipt.
 - Subjective items are `client_approval` and a human decides.
 - Held funds auto-release to the worker after PayPal's hold limit (documented as 28 days), so a silent client cannot block payment.
 - Every term in this section must map to code a judge can open. If a feature is cut, cut it from the pitch too.
@@ -532,7 +532,7 @@ The pure parts (TQ.1–TQ.3) need no keys or network and come first. Every task 
   *Done when:* a tamper test over every field of a real receipt passes, and the standalone script runs with plain `node` in an empty folder.
 - [~] **TQ.9** (Param — validate-before-settle done in T2.5; PayPal field binding waits for the rail spike) Settlement verifies, not trusts: `settle` validates the certificate from scratch before any PayPal call, and binds the certificate hash to the PayPal capture/refund (VERIFY fields).
 - [x] **TQ.10** `docs/PROTOCOL.md`: Kept Protocol v1 — contract format and hashing, attestation and certificate formats, quorum rule, receipt format and verification steps — complete enough for someone else to implement a compatible verifier.
-- [ ] **TQ.11** Prior-art check: search for existing systems that combine conditional payment, AI verification, verifier quorums or signed evidence (escrow APIs, smart-contract oracles, agent payment protocols such as AP2/x402). Record findings in `docs/PRIOR_ART.md` and write the exact novelty sentence we are allowed to use.
+- [x] **TQ.11** Prior-art check: search for existing systems that combine conditional payment, AI verification, verifier quorums or signed evidence (escrow APIs, smart-contract oracles, agent payment protocols such as AP2/x402). Record findings in `docs/PRIOR_ART.md` and write the exact novelty sentence we are allowed to use.
 - [ ] **TQ.12** (SHOULD) Browser-side receipt verification on the receipt page with WebCrypto (replaces T6.3).
 
 ### P4 — MCP server and demo agents (MUST)
