@@ -5,18 +5,23 @@
  *
  * It acts as the party the token belongs to and uses the same database, keys
  * and verifier settings as the web server (.env). stdout carries the protocol,
- * so every log line goes to stderr.
+ * so every log line goes to stderr. Runs from the repo root whatever the client's cwd.
  */
-import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import { ConfigError, loadConfig } from "../config.js";
-import { getParty } from "../core/jobs.js";
-import { KeyError } from "../qaps/keys.js";
-import { partyFromToken } from "../server/auth.js";
-import { loadServices } from "../server/services.js";
-import { createMcpServer } from "./server.js";
+import { fileURLToPath } from "node:url";
 
 console.log = console.error; // never write anything but protocol messages to stdout
 console.info = console.error;
+// Desktop clients start this from any folder. Work from the repo root, so `.env`
+// and relative paths (./data/kept.db, ./data/keys) are the same as the web server's.
+// Config reads .env when it is first imported, hence the dynamic imports below.
+process.chdir(fileURLToPath(new URL("../../", import.meta.url)));
+const { StdioServerTransport } = await import("@modelcontextprotocol/sdk/server/stdio.js");
+const { ConfigError, loadConfig } = await import("../config.js");
+const { getParty } = await import("../core/jobs.js");
+const { KeyError } = await import("../qaps/keys.js");
+const { partyFromToken } = await import("../server/auth.js");
+const { loadServices } = await import("../server/services.js");
+const { createMcpServer } = await import("./server.js");
 
 function die(message: string): never {
   console.error(`kept-mcp: ${message}`);
