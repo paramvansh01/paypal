@@ -573,11 +573,11 @@ The pure parts (TQ.1–TQ.3) need no keys or network and come first. Every task 
 
 ### P8 — Submission (MUST)
 
-- [ ] **T8.1** README final: what it is, architecture diagram, one-command local setup, hosted URL, demo walkthrough, MCP connection steps, how PayPal is used (with endpoint list), the "pay on proof, not escrow" explanation, limitations, next steps.
-- [ ] **T8.2** Fresh-clone test: clone into an empty folder, follow only the README, reach a working demo. Fix every gap found.
-- [ ] **T8.3** `docs/SUBMISSION.md`: the text description for the submission form, mapped to the judging criteria.
-- [ ] **T8.4** `docs/VIDEO_SCRIPT.md`: shot list with timings (below), exact clicks and the narration.
-- [ ] **T8.5** Confirm the repo is public, the license shows in the About section, and no secrets exist in git history.
+- [x] **T8.1** README final (hosted URL and video link still to add after T7.2/H10): what it is, architecture diagram, one-command local setup, hosted URL, demo walkthrough, MCP connection steps, how PayPal is used (with endpoint list), the "pay on proof, not escrow" explanation, limitations, next steps.
+- [x] **T8.2** Fresh-clone test: clone into an empty folder, follow only the README, reach a working demo. Fix every gap found.
+- [~] **T8.3** (Aashman — drafted; re-map to the official criteria after H8, fill hosted URL, video, team, PayPal status) `docs/SUBMISSION.md`: the text description for the submission form, mapped to the judging criteria.
+- [x] **T8.4** `docs/VIDEO_SCRIPT.md`: shot list with timings (below), exact clicks and the narration.
+- [x] **T8.5** Confirm the repo is public, the license shows in the About section, and no secrets exist in git history.
 - [ ] **T8.6** Human records the video (H10) and submits (H11). Claude checks the final checklist in section 4 line by line first.
 
 Video plan, under 3:00:
