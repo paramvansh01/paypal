@@ -1,0 +1,56 @@
+# Render Blueprint for Kept: one Docker web service (T7.1).
+# Secrets are "sync: false": Render asks for them when the Blueprint is created.
+# Data lives in SQLite under /app/data, which is reset on every deploy; the demo
+# parties are seeded on boot. PUBLIC_BASE_URL defaults to Render's RENDER_EXTERNAL_URL. Verifier and issuer keys must survive deploys, so
+# set VERIFIER_KEYS_JSON (print it with `npm run keys:export` on your machine).
+services:
+  - type: web
+    name: kept
+    runtime: docker
+    plan: starter
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: PORT
+        value: "10000"
+      - key: DATABASE_PATH
+        value: /app/data/kept.db
+      - key: EVIDENCE_DIR
+        value: /app/data/evidence
+      - key: VERIFIER_KEYS_DIR
+        value: /app/data/keys
+      - key: VERIFIER_KEYS_JSON
+        sync: false
+      - key: MCP_AUTH_TOKEN
+        generateValue: true
+      - key: DEMO_MODE
+        value: "1"
+      - key: PAYPAL_CLIENT_ID
+        sync: false
+      - key: PAYPAL_CLIENT_SECRET
+        sync: false
+      - key: PAYPAL_BASE_URL
+        value: https://api-m.sandbox.paypal.com
+      - key: PAYMENT_RAIL
+        value: auth_capture # the fallback rail until the P1 spike decides (T1.6)
+      - key: PAYPAL_PARTNER_ATTRIBUTION_ID
+        sync: false
+      - key: PAYPAL_PARTNER_MERCHANT_ID
+        sync: false
+      - key: PAYPAL_WEBHOOK_ID
+        sync: false
+      - key: DEMO_CLIENT_EMAIL
+        sync: false
+      - key: DEMO_WORKER_EMAIL
+        sync: false
+      - key: DEMO_WORKER_MERCHANT_ID
+        sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: LLM_MODEL
+        value: claude-opus-5-5
+      - key: VERIFIER_BROWSER
+        value: kernel
+      - key: KERNEL_API_KEY
+        sync: false

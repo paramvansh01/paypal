@@ -119,7 +119,8 @@ export class ConfigError extends Error {
 }
 
 export function loadConfig(source: NodeJS.ProcessEnv = process.env): Config {
-  const parsed = EnvSchema.safeParse(source);
+  // On Render, the service URL is provided as RENDER_EXTERNAL_URL.
+  const parsed = EnvSchema.safeParse({ ...source, PUBLIC_BASE_URL: source.PUBLIC_BASE_URL || source.RENDER_EXTERNAL_URL });
   if (!parsed.success) {
     const keys = parsed.error.issues.map((i) => String(i.path[0]));
     const lines = parsed.error.issues.map((i) => `  - ${String(i.path[0])}: ${i.message}`);

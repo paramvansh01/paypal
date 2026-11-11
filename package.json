@@ -26,7 +26,8 @@
     "demo": "tsx scripts/demo.ts",
     "agent:buyer": "tsx agents/buyer.ts",
     "agent:worker": "tsx agents/worker.ts",
-    "spike:rail": "tsx scripts/spike-rail.ts"
+    "spike:rail": "tsx scripts/spike-rail.ts",
+    "keys:export": "tsx scripts/keys-export.ts"
   },
   "license": "MIT",
   "type": "module",
