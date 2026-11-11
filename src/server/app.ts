@@ -12,6 +12,8 @@ import type { LlmClient } from "../llm/client.js";
 import { apiErrors, apiRouter } from "./api.js";
 import { requireParty } from "./auth.js";
 import { demoRouter } from "./demo.js";
+import { paypalRouter } from "./paypal-routes.js";
+import type { PayPalClient } from "../paypal/client.js";
 import { isOfflineRail } from "../rails/offline.js";
 import { publicKeyring, type Keyring, type VerifierKey } from "../qaps/keys.js";
 import type { EvidenceStore } from "../verifier/evidence-store.js";
@@ -49,6 +51,8 @@ export interface AppDeps {
   evidence?: EvidenceStore;
   /** Language model for checklist drafts (T3.2). */
   llm?: LlmClient;
+  /** PayPal REST client (webhook verification). */
+  paypal?: PayPalClient;
 }
 
 export function createApp(config: Config, deps: AppDeps = {}): Express {
@@ -159,6 +163,9 @@ export function createApp(config: Config, deps: AppDeps = {}): Express {
       res.status(405).set("Allow", "POST").json({ jsonrpc: "2.0", error: { code: -32000, message: "Method not allowed: this MCP server is stateless, use POST." }, id: null });
     });
   }
+
+  // Reading the truth back from PayPal (T2.7).
+  if (deps.db) app.use(paypalRouter(config, { db: deps.db, rail: deps.rail, paypal: deps.paypal }));
 
   // Demo helpers and judge mode (src/server/demo.ts).
   if (deps.db) app.use(demoRouter(config, deps.db));

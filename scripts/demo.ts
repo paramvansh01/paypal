@@ -70,9 +70,9 @@ if (!base) {
   });
   const services = loadServices(config);
   seedDemoParties(services.db, config);
-  // TODO(T2.3): use the PayPal rail here when PayPal keys are configured.
-  const rail = offlineRail();
-  offline = true;
+  // The PayPal sandbox rail when PayPal keys are configured; otherwise the OFFLINE stand-in.
+  const rail = services.rail ?? offlineRail();
+  offline = !services.rail;
   const app = createApp(config, { ...services, rail });
   const server = await new Promise<import("node:http").Server>((r) => {
     const s = app.listen(port, "127.0.0.1", () => r(s));

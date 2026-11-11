@@ -25,7 +25,8 @@
     "mcp": "tsx src/mcp/stdio.ts",
     "demo": "tsx scripts/demo.ts",
     "agent:buyer": "tsx agents/buyer.ts",
-    "agent:worker": "tsx agents/worker.ts"
+    "agent:worker": "tsx agents/worker.ts",
+    "spike:rail": "tsx scripts/spike-rail.ts"
   },
   "license": "MIT",
   "type": "module",
