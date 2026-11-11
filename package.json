@@ -22,7 +22,10 @@
     "party-token": "tsx scripts/party-token.ts",
     "protocol-vectors": "tsx scripts/protocol-vectors.ts",
     "demo:report": "tsx scripts/demo-report.ts",
-    "mcp": "tsx src/mcp/stdio.ts"
+    "mcp": "tsx src/mcp/stdio.ts",
+    "demo": "tsx scripts/demo.ts",
+    "agent:buyer": "tsx agents/buyer.ts",
+    "agent:worker": "tsx agents/worker.ts"
   },
   "license": "MIT",
   "type": "module",

@@ -18,7 +18,7 @@ import { createDeliveredDemoJob } from "../src/demo/job.js";
 import { loadKeyring } from "../src/qaps/keys.js";
 import { verifierIds } from "../src/qaps/protocol.js";
 import { ISSUER_ID } from "../src/qaps/receipt.js";
-import type { PaymentRail } from "../src/rails/types.js";
+import { offlineRail } from "../src/rails/offline.js";
 import { createApp } from "../src/server/app.js";
 import { buildVerifier } from "../src/server/verifier.js";
 import { EvidenceStore } from "../src/verifier/evidence-store.js";
@@ -34,15 +34,7 @@ if (!["good", "flawed", "sneaky"].includes(site)) {
   process.exit(2);
 }
 
-/** No PayPal: records what would happen. Every ID says OFFLINE so nobody mistakes it for a real payment. */
-const offlineRail: PaymentRail = {
-  name: "auth_capture",
-  lock: async () => ({ orderId: "OFFLINE-ORDER", approveUrl: "about:blank" }),
-  confirmLocked: async () => ({ captureIds: ["OFFLINE-CAPTURE"] }),
-  releaseMilestone: async (_j, ms) => ({ paypalId: `OFFLINE-RELEASE-${ms.position + 1}` }),
-  refundMilestone: async (_j, ms) => ({ paypalId: `OFFLINE-REFUND-${ms.position + 1}` }),
-  status: async () => ({ orderStatus: "OFFLINE", heldCents: 0, releasedCents: 0, refundedCents: 0 }),
-};
+const rail = offlineRail();
 
 const tmp = mkdtempSync(join(tmpdir(), "kept-demo-report-"));
 const base = `http://127.0.0.1:${port}`;
@@ -53,7 +45,7 @@ const keyring = loadKeyring(verifierIds(3), { dir: join(tmp, "keys") });
 const issuer = loadKeyring([ISSUER_ID], { dir: join(tmp, "keys") }).get(ISSUER_ID)!;
 const evidence = new EvidenceStore(join(tmp, "evidence"));
 const verify = buildVerifier(config, keyring, evidence);
-const app = createApp(config, { db, keyring, issuer, evidence, rail: offlineRail, verify });
+const app = createApp(config, { db, keyring, issuer, evidence, rail, verify });
 await new Promise<void>((r) => app.listen(port, "127.0.0.1", () => r()));
 
 const jobId = createDeliveredDemoJob(db, { keyring, deliverableUrl: `${base}/demo/sites/${site}/`, title: `Halcyon Crumb website (${site} delivery)` });
@@ -62,7 +54,7 @@ const summary = await verify(db, jobId);
 for (const item of summary.items?.filter((x) => x.verdict === "needs_client") ?? []) {
   recordClientDecision(db, { jobId, m: item.m, i: item.i, decision: "approve", actor: DEMO_CLIENT_ID, note: "Looks good to me" });
 }
-const report = await settleJob(db, jobId, { rail: offlineRail, loadProof: loadProofFromDb, actor: "kept" });
+const report = await settleJob(db, jobId, { rail, loadProof: loadProofFromDb, actor: "kept" });
 console.log(`Settled offline: released $${report.releasedCents / 100}, refunded $${report.refundedCents / 100}`);
 console.log(`\nEvidence report: ${base}/jobs/${jobId}/report`);
 console.log(`Proof Receipt:   ${base}/jobs/${jobId}/receipt\n(Ctrl+C to stop)`);

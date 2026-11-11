@@ -539,9 +539,9 @@ The pure parts (TQ.1–TQ.3) need no keys or network and come first. Every task 
 
 - [x] **T4.1** MCP server with the tools in 6.8 over Streamable HTTP at `/mcp` with bearer-token auth, plus a stdio entry point. Clear tool descriptions and input schemas, since agents read them. `get_receipt` calls `getReceipt()` from src/core/receipt-store.ts.
 - [~] **T4.2** (Aashman — MCP Inspector CLI verified over HTTP and stdio, README steps written; the real-client check waits for a valid Claude Code login on this Mac) Test with the MCP Inspector and with one real client (Claude Code or Claude Desktop). Put the exact connection steps in the README.
-- [ ] **T4.3** Buyer agent (`agents/buyer.ts`): given a goal and a budget, it posts the job, accepts the checklist, requests the lock, waits, then calls verify and settle.
-- [ ] **T4.4** Worker agent (`agents/worker.ts`): accepts a job and submits a deliverable. In demo mode it submits `good` or `flawed` by flag, so the run is repeatable.
-- [ ] **T4.5** `npm run demo`: scripted agent-to-agent run from start to finish, pausing only for the PayPal approval click, printing a readable narration.
+- [x] **T4.3** Buyer agent (`agents/buyer.ts`): given a goal and a budget, it posts the job, accepts the checklist, requests the lock, waits, then calls verify and settle.
+- [x] **T4.4** Worker agent (`agents/worker.ts`): accepts a job and submits a deliverable. In demo mode it submits `good` or `flawed` by flag, so the run is repeatable.
+- [~] **T4.5** (Aashman — works end to end on the OFFLINE rail: `npm run demo -- --site all --runs 3` gave 9 of 9 as expected; the PayPal approval pause is wired for `--base` and waits for T2.3) `npm run demo`: scripted agent-to-agent run from start to finish, pausing only for the PayPal approval click, printing a readable narration.
   *Done when:* it succeeds three times in a row for both `good` and `flawed`.
 
 ### P5 — Web UI (MUST for the core views, SHOULD for polish)
@@ -655,6 +655,7 @@ Format: `YYYY-MM-DD — <name> — decision — reason`
 - 2026-11-11 — Aashman — `npm run demo:report -- --site good|flawed|sneaky` runs the real quorum on a demo site, settles on an OFFLINE stand-in rail (every ID starts with `OFFLINE-`, so nobody mistakes it for PayPal) and serves the report. For previews and the video until the PayPal rail exists.
 - 2026-11-11 — Aashman — MCP server (`src/mcp/server.ts`, SDK `@modelcontextprotocol/sdk` 1.32): `POST /mcp` is stateless Streamable HTTP with JSON responses (no sessions, GET/DELETE → 405); each request builds a fresh McpServer bound to the party of its bearer token, so the acting party never comes from a tool argument. Every MCP call needs a token, reads included (REST reads stay public). stdio entry `src/mcp/stdio.ts` (`npm run --silent mcp`, or `node_modules/.bin/tsx src/mcp/stdio.ts`) acts as the party in `KEPT_PARTY_TOKEN`, reads `.env` from its cwd, and sends all logs to stderr. Tools beyond 6.8, needed to finish a job without REST: `whoami`, `propose_checklist`, `cancel_job`, `confirm_funds`. `verify` waits for the quorum (unlike REST's 202). Domain errors come back as tool errors labelled like the HTTP status (`Not allowed: …`, `Unavailable: … T2.3`), from one shared `classifyError` (`src/server/errors.ts`). Shared wiring for both entry points lives in `src/server/services.ts`.
 - 2026-11-11 — Aashman — The stdio MCP entry chdirs to the repo root before loading config (dynamic imports), because desktop clients start servers from arbitrary folders; `.env` and relative data paths then match the web server.
+- 2026-11-11 — Aashman — Demo agents (`agents/`) are plain MCP clients with no LLM, so the demo is repeatable without keys; the buyer uses `demo/contract.json` until the checklist generator (T3.2) is live. The buyer rejects any item the quorum left to the client unless told otherwise (an agent spending money does not approve what it could not verify). `npm run demo` starts its own throwaway server on the OFFLINE stand-in rail (`src/rails/offline.ts`, every ID `OFFLINE-…`, narration says no money moves) until T2.3; `--base <url>` drives a real server and pauses for the PayPal approval click.
 
 ---
 

@@ -109,6 +109,7 @@ Tools: `whoami`, `post_job`, `propose_checklist`, `accept_checklist`, `cancel_jo
 | `npm run check` | Typecheck, lint and run the tests (about 50 s; opens real browsers) |
 | `npm run --silent mcp` | Kept MCP server over stdio (needs `KEPT_PARTY_TOKEN`) |
 | `npm run party-token -- <party_id>` | Print the bearer token for a party |
+| `npm run demo -- --site flawed` | Agent-to-agent demo over MCP: buyer agent posts and pays, worker agent delivers, the quorum verifies, settlement releases/refunds (`--site good|flawed|sneaky|all`, `--runs N`) |
 | `npm run demo:verify -- --runs 3` | Run the 2-of-3 verifier quorum against the three demo sites and check each result (no keys needed) |
 
 ## License
