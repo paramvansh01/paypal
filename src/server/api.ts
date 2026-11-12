@@ -235,7 +235,7 @@ export function apiRouter(config: Config, deps: ApiDeps): Router {
     "/checklists/generate",
     auth,
     asyncRoute(async (req, res) => {
-      if (!deps.llm) throw new ServiceUnavailable("No language model is configured on this server (set ANTHROPIC_API_KEY).");
+      if (!deps.llm) throw new ServiceUnavailable("No language model is configured on this server (set ANTHROPIC_API_KEY or GEMINI_API_KEY).");
       const input = GenerateInput.parse(req.body);
       const checklist = await generateChecklist(deps.llm, config.llm.model ?? DEFAULT_LLM_MODEL, { brief: input.brief, budgetCents: input.budget_cents, currency: input.currency });
       res.json({ checklist, generated_by: config.llm.model ?? DEFAULT_LLM_MODEL, note: "An AI draft: both parties must review and accept it." });

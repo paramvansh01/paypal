@@ -4,7 +4,7 @@ import { makeJudge } from "../llm/judge.js";
 
 /** The LLM client from config: LLM_REPLAY_DIR (recorded answers), else the Anthropic API when a key is set. */
 export function llmFromConfig(config: Config): LlmClient | undefined {
-  return llmFromEnv({ apiKey: config.llm.apiKey, replayDir: process.env.LLM_REPLAY_DIR, recordDir: process.env.LLM_RECORD_DIR });
+  return llmFromEnv({ apiKey: config.llm.apiKey, geminiApiKey: config.llm.geminiApiKey, replayDir: process.env.LLM_REPLAY_DIR, recordDir: process.env.LLM_RECORD_DIR });
 }
 import type { Db } from "../db/client.js";
 import type { Keyring } from "../qaps/keys.js";

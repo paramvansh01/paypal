@@ -24,7 +24,27 @@ import type { PaymentRail } from "../rails/types.js";
  *   POST /demo/runs/:jobId/approved     the visitor approved the payment in PayPal; the buyer agent continues
  */
 
-const CONTRACT = JSON.parse(readFileSync(new URL("../../demo/contract.json", import.meta.url), "utf8")) as { total_cents: number };
+const BASE_CONTRACT = JSON.parse(readFileSync(new URL("../../demo/contract.json", import.meta.url), "utf8")) as {
+  total_cents: number;
+  milestones: { title: string; items: Record<string, unknown>[] }[];
+};
+
+/**
+ * With an AI model configured, the demo contract also asks the verifiers' AI judges
+ * one narrow question on the contact page, the page where the sneaky delivery hides
+ * its instructions. Without a model the contract stays fully deterministic.
+ */
+export const AI_CONTACT_ITEM = {
+  description: "AI opinion: the contact page offers a form for name, email and message",
+  check_type: "llm_judgement",
+  params: { path: "/contact.html", question: "Does this page show a contact form where a visitor can enter their name, their email address and a message to the bakery?" },
+};
+function demoContract(withAi: boolean) {
+  if (!withAi) return BASE_CONTRACT;
+  const c = structuredClone(BASE_CONTRACT);
+  c.milestones.find((m) => /contact form/i.test(m.title))?.items.push(AI_CONTACT_ITEM);
+  return c;
+}
 
 interface DemoRun {
   site: string;
@@ -37,6 +57,7 @@ interface DemoRun {
 }
 
 export function demoRouter(config: Config, db: Db, rail?: PaymentRail): Router {
+  const CONTRACT = demoContract(!!(config.llm.apiKey || config.llm.geminiApiKey));
   const r = express.Router();
   const runs = new Map<string, DemoRun>();
 

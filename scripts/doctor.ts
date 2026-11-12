@@ -4,6 +4,7 @@
  * LLM call and opens (then deletes) one browser session.
  */
 import Anthropic from "@anthropic-ai/sdk";
+import { GeminiLlm } from "../src/llm/client.js";
 import Kernel from "@onkernel/sdk";
 import { chromium, type Browser } from "playwright";
 import { ConfigError, loadConfig, missingKeys, type Config, type ConfigGroup } from "../src/config.js";
@@ -129,8 +130,17 @@ async function main(): Promise<void> {
       : { name: "PayPal token", status: "FAIL", detail: "needs PAYPAL_CLIENT_ID and PAYPAL_CLIENT_SECRET" },
   );
 
-  const { apiKey, model } = config.llm;
-  results.push(
+  const { apiKey, model, geminiApiKey } = config.llm;
+  if (geminiApiKey && !apiKey && model) {
+    results.push(await run("LLM call (Gemini)", () =>
+      withTimeout(TIMEOUT_MS, async () => {
+        const res = await new GeminiLlm(geminiApiKey).complete({
+          model, system: "Answer in JSON.", content: [{ type: "text", text: "Reply with ok." }],
+          schema: { type: "object", properties: { reply: { type: "string" } }, required: ["reply"] }, maxTokens: 256,
+        });
+        return `${res.model} replied ${res.text.slice(0, 40)} (stop: ${res.stopReason})`;
+      })));
+  } else results.push(
     apiKey && model
       ? await run("LLM call", () =>
           withTimeout(TIMEOUT_MS, async () => {

@@ -38,6 +38,8 @@ const EnvSchema = z.object({
   DEMO_WORKER_MERCHANT_ID: optionalString,
 
   ANTHROPIC_API_KEY: optionalString,
+  /** Google Gemini instead of (or as well as) Anthropic; model names starting gemini- go to Google. */
+  GEMINI_API_KEY: optionalString,
   LLM_MODEL: optionalString,
 
   VERIFIER_BROWSER: z.preprocess(blankToUndefined, z.enum(["kernel", "local"]).default("kernel")),
@@ -53,9 +55,9 @@ const EnvSchema = z.object({
     blankToUndefined,
     z
       .string()
-      .default("claude-opus-5-5,claude-sonnet-5-5,claude-haiku-5-5")
-      .transform((s) => s.split(",").map((m) => m.trim()).filter(Boolean))
-      .pipe(z.array(z.string()).min(1)),
+      .optional()
+      .transform((s) => s?.split(",").map((m) => m.trim()).filter(Boolean))
+      .pipe(z.array(z.string()).min(1).optional()),
   ),
 
   PORT: z.preprocess(blankToUndefined, z.coerce.number().int().positive().default(3000)),
@@ -93,7 +95,7 @@ export interface Config {
     rail: Env["PAYMENT_RAIL"];
   };
   demo: { clientEmail?: string; workerEmail?: string; workerMerchantId?: string };
-  llm: { apiKey?: string; model?: string };
+  llm: { apiKey?: string; geminiApiKey?: string; model?: string };
   verifier: {
     browser: Env["VERIFIER_BROWSER"];
     kernelApiKey?: string;
@@ -118,6 +120,11 @@ export class ConfigError extends Error {
   }
 }
 
+/** One judge per verifier, each a different model (Claude by default; Gemini when only a Gemini key is set). */
+export const CLAUDE_JUDGES = ["claude-opus-5-5", "claude-sonnet-5-5", "claude-haiku-5-5"];
+export const GEMINI_JUDGES = ["gemini-3.5-flash", "gemini-3.6-flash", "gemini-3.5-flash-lite"];
+export const GEMINI_DEFAULT_MODEL = "gemini-3.5-flash";
+
 export function loadConfig(source: NodeJS.ProcessEnv = process.env): Config {
   // On Render, the service URL is provided as RENDER_EXTERNAL_URL.
   const parsed = EnvSchema.safeParse({ ...source, PUBLIC_BASE_URL: source.PUBLIC_BASE_URL || source.RENDER_EXTERNAL_URL });
@@ -127,6 +134,7 @@ export function loadConfig(source: NodeJS.ProcessEnv = process.env): Config {
     throw new ConfigError(`Invalid environment variables:\n${lines.join("\n")}\nSee .env.example.`, keys);
   }
   const env = parsed.data;
+  const geminiOnly = !!env.GEMINI_API_KEY && !env.ANTHROPIC_API_KEY;
   return {
     env,
     paypal: {
@@ -143,7 +151,7 @@ export function loadConfig(source: NodeJS.ProcessEnv = process.env): Config {
       workerEmail: env.DEMO_WORKER_EMAIL,
       workerMerchantId: env.DEMO_WORKER_MERCHANT_ID,
     },
-    llm: { apiKey: env.ANTHROPIC_API_KEY, model: env.LLM_MODEL },
+    llm: { apiKey: env.ANTHROPIC_API_KEY, geminiApiKey: env.GEMINI_API_KEY, model: geminiOnly && !env.LLM_MODEL?.startsWith("gemini") ? GEMINI_DEFAULT_MODEL : env.LLM_MODEL },
     verifier: {
       browser: env.VERIFIER_BROWSER,
       kernelApiKey: env.KERNEL_API_KEY,
@@ -151,7 +159,7 @@ export function loadConfig(source: NodeJS.ProcessEnv = process.env): Config {
       quorumK: env.QUORUM_K,
       keysDir: env.VERIFIER_KEYS_DIR,
       keysJson: env.VERIFIER_KEYS_JSON,
-      judgeModels: env.JUDGE_MODELS,
+      judgeModels: geminiOnly && !env.JUDGE_MODELS?.every((m) => m.startsWith("gemini")) ? GEMINI_JUDGES : env.JUDGE_MODELS ?? CLAUDE_JUDGES,
       evidenceDir: env.EVIDENCE_DIR,
       checkTimeoutMs: env.VERIFIER_CHECK_TIMEOUT_MS,
     },
@@ -176,7 +184,7 @@ export function requiredKeys(env: Env): Record<ConfigGroup, (keyof Env)[]> {
         : []),
     ],
     demo: ["DEMO_CLIENT_EMAIL", "DEMO_WORKER_EMAIL"],
-    llm: ["ANTHROPIC_API_KEY", "LLM_MODEL"],
+    llm: env.GEMINI_API_KEY && !env.ANTHROPIC_API_KEY ? ["GEMINI_API_KEY"] : ["ANTHROPIC_API_KEY", "LLM_MODEL"],
     verifier: env.VERIFIER_BROWSER === "kernel" ? ["KERNEL_API_KEY"] : [],
     mcp: ["MCP_AUTH_TOKEN"],
     webhooks: ["PAYPAL_WEBHOOK_ID"],

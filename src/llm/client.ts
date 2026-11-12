@@ -88,6 +88,72 @@ export class AnthropicLlm implements LlmClient {
   }
 }
 
+/**
+ * Google Gemini over its REST API (no SDK): generateContent with
+ * responseMimeType application/json and responseJsonSchema, so answers are
+ * strict JSON exactly as with Anthropic's structured outputs.
+ */
+export class GeminiLlm implements LlmClient {
+  constructor(
+    private readonly apiKey: string,
+    private readonly opts: { baseUrl?: string; timeoutMs?: number; fetch?: typeof fetch } = {},
+  ) {}
+
+  async complete(req: LlmRequest): Promise<LlmResponse> {
+    const base = this.opts.baseUrl ?? "https://generativelanguage.googleapis.com/v1beta";
+    const body = {
+      systemInstruction: { parts: [{ text: req.system }] },
+      contents: [{
+        role: "user",
+        parts: req.content.map((c) => (c.type === "text" ? { text: c.text } : { inlineData: { mimeType: "image/png", data: c.base64 } })),
+      }],
+      generationConfig: { responseMimeType: "application/json", responseJsonSchema: req.schema, maxOutputTokens: req.maxTokens ?? 16_000 },
+    };
+    const f = this.opts.fetch ?? fetch;
+    let res: Response;
+    for (let attempt = 1; ; attempt++) {
+      try {
+        res = await f(`${base}/models/${encodeURIComponent(req.model)}:generateContent`, {
+          method: "POST",
+          headers: { "content-type": "application/json", "x-goog-api-key": this.apiKey },
+          body: JSON.stringify(body),
+          signal: AbortSignal.timeout(this.opts.timeoutMs ?? 120_000),
+        });
+      } catch (err) {
+        throw new LlmError(`Gemini request failed: ${err instanceof Error ? err.message : String(err)}`, { cause: err });
+      }
+      // Rate limits and overload are common on free tiers: retry twice with a short backoff.
+      if ((res.status === 429 || res.status === 503) && attempt < 3) {
+        await new Promise((r) => setTimeout(r, 1500 * attempt));
+        continue;
+      }
+      break;
+    }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const data = (await res.json().catch(() => ({}))) as any;
+    if (!res.ok) throw new LlmError(`Gemini API error ${res.status}: ${data?.error?.message ?? res.statusText}`);
+    if (data?.promptFeedback?.blockReason) throw new LlmError(`the model declined (${data.promptFeedback.blockReason})`);
+    const cand = data?.candidates?.[0];
+    const reason: string | null = cand?.finishReason ?? null;
+    if (reason === "MAX_TOKENS") throw new LlmError("the model's answer was cut off (max tokens)");
+    if (reason && reason !== "STOP") throw new LlmError(`the model declined (${reason})`);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const text = (cand?.content?.parts ?? []).filter((p: any) => typeof p.text === "string" && !p.thought).map((p: any) => p.text).join("");
+    return { text, model: data?.modelVersion ?? req.model, stopReason: reason };
+  }
+}
+
+/** Sends each request to the provider its model name belongs to (gemini-* to Google, everything else to Anthropic). */
+export class RoutingLlm implements LlmClient {
+  constructor(private readonly clients: { anthropic?: LlmClient; gemini?: LlmClient }) {}
+  complete(req: LlmRequest): Promise<LlmResponse> {
+    const gemini = req.model.startsWith("gemini");
+    const client = gemini ? this.clients.gemini : this.clients.anthropic;
+    if (!client) return Promise.reject(new LlmError(`no API key for model ${req.model} (set ${gemini ? "GEMINI_API_KEY" : "ANTHROPIC_API_KEY"})`));
+    return client.complete(req);
+  }
+}
+
 const PLACEHOLDER = "<<VOLATILE>>";
 const mask = (text: string, req: LlmRequest) => (req.volatile ?? []).reduce((acc, v) => (v ? acc.split(v).join(PLACEHOLDER) : acc), text);
 const unmask = (text: string, req: LlmRequest) => (req.volatile?.[0] ? text.split(PLACEHOLDER).join(req.volatile[0]) : text);
@@ -154,9 +220,12 @@ export class ScriptedLlm implements LlmClient {
  * Builds the client from config: a replay dir serves recordings, otherwise the
  * Anthropic API (recording too if a record dir is set). Undefined without a key.
  */
-export function llmFromEnv(opts: { apiKey?: string; replayDir?: string; recordDir?: string }): LlmClient | undefined {
+export function llmFromEnv(opts: { apiKey?: string; geminiApiKey?: string; replayDir?: string; recordDir?: string }): LlmClient | undefined {
   if (opts.replayDir) return new ReplayLlm(opts.replayDir);
-  if (!opts.apiKey) return undefined;
-  const live = new AnthropicLlm(opts.apiKey);
+  if (!opts.apiKey && !opts.geminiApiKey) return undefined;
+  const live = new RoutingLlm({
+    anthropic: opts.apiKey ? new AnthropicLlm(opts.apiKey) : undefined,
+    gemini: opts.geminiApiKey ? new GeminiLlm(opts.geminiApiKey) : undefined,
+  });
   return opts.recordDir ? new RecordingLlm(live, opts.recordDir) : live;
 }
