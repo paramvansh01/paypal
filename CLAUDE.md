@@ -671,7 +671,8 @@ Format: `YYYY-MM-DD — <name> — decision — reason`
 - 2026-11-12 — Aryan — Sandbox uses US accounts (US personal buyer, US business seller under a Platform app) — Indian sandbox accounts were refused at approval ("seller doesn't accept payments in your currency").
 
 - 2026-11-12 — Aryan — AG Grid Community (MIT) for the money ledger, loaded from node_modules (`/assets/vendor/ag-grid-community.min.js` serves the `noStyle` bundle: the full bundle injects legacy CSS at load, which the CSP blocks). App pages now get a per-request CSP nonce for styles only (`style-src 'self' 'nonce-…'`, `<meta name="csp-nonce">`, gridOptions.styleNonce); scripts stay 'self'. The report page keeps its static CSP.
-- 2026-11-12 — Aryan — Own visual identity (navy header, teal accent, light theme only), not PayPal's look: the rules forbid third-party trademarks without permission, and a clone reads as a mockup. "Settled on PayPal" is said in text only.
+- 2026-11-12 — Aryan — Own visual identity, not PayPal's look (later replaced by the security-print redesign below): the rules forbid third-party trademarks without permission, and a clone reads as a mockup. "Settled on PayPal" is said in text only.
+- 2026-11-12 — Aryan — Redesign in a security-print language (cheques, banknotes, receipts): paper/ink/security-green palette, carmine for refunds, ochre for held money, self-hosted Bricolage Grotesque + IBM Plex Mono (`/assets/fonts/*`, CSP `font-src 'self'`), a generated guilloche band (`web/app/guilloche.svg`). The centrepiece is the settlement slip: a job drawn as a cheque whose milestone lines carry each verifier's vote and a Paid/Refunded stamp, on the home page (latest settled job, or a dashed example) and beside the job header. Rules and ledger lines instead of shadowed cards.
 
 ---
 

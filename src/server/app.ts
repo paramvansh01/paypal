@@ -38,6 +38,7 @@ const REPORT_CSP = [
   "script-src 'self'",
   "style-src 'self'",
   "img-src 'self'",
+  "font-src 'self'",
   "connect-src 'self'",
   "base-uri 'none'",
   "form-action 'none'",
@@ -53,6 +54,7 @@ const REPORT_CSP = [
 const appCsp = (nonce: string) => REPORT_CSP.replace("style-src 'self'", `style-src 'self' 'nonce-${nonce}'`);
 
 /** AG Grid Community's browser bundle (MIT), served from node_modules so there is no CDN. */
+const NODE_MODULES = fileURLToPath(new URL("../../node_modules/", import.meta.url));
 const AG_GRID_DIST = (() => {
   let dir = dirname(createRequire(import.meta.url).resolve("ag-grid-community"));
   while (basename(dir) !== "ag-grid-community" && dirname(dir) !== dir) dir = dirname(dir);
@@ -164,6 +166,20 @@ export function createApp(config: Config, deps: AppDeps = {}): Express {
     res.set("X-Content-Type-Options", "nosniff");
     next();
   }, express.static(APP_DIR, { index: false, maxAge: 0 }));
+  // Self-hosted typefaces (OFL): Bricolage Grotesque for text, IBM Plex Mono for hashes and IDs.
+  const FONTS: Record<string, [string, string]> = {
+    "bricolage.woff2": ["@fontsource-variable/bricolage-grotesque", "bricolage-grotesque-latin-opsz-normal.woff2"],
+    "plex-mono-400.woff2": ["@fontsource/ibm-plex-mono", "ibm-plex-mono-latin-400-normal.woff2"],
+    "plex-mono-500.woff2": ["@fontsource/ibm-plex-mono", "ibm-plex-mono-latin-500-normal.woff2"],
+  };
+  app.get("/assets/fonts/:file", (req, res) => {
+    const f = FONTS[req.params.file];
+    if (!f) {
+      res.status(404).end();
+      return;
+    }
+    res.set({ "Cache-Control": "public, max-age=604800", "X-Content-Type-Options": "nosniff" }).type("font/woff2").sendFile(f[1], { root: join(NODE_MODULES, f[0], "files") });
+  });
   app.get("/assets/vendor/ag-grid-community.min.js", (_req, res) => {
     res.set({ "X-Content-Type-Options": "nosniff", "Cache-Control": "public, max-age=86400" }).type("text/javascript").sendFile("ag-grid-community.min.noStyle.js", { root: AG_GRID_DIST });
   });

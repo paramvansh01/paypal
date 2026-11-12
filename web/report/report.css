@@ -1,23 +1,27 @@
+@font-face { font-family: "Bricolage"; src: url("/assets/fonts/bricolage.woff2") format("woff2"); font-weight: 200 800; font-display: swap; }
+@font-face { font-family: "Plex Mono"; src: url("/assets/fonts/plex-mono-400.woff2") format("woff2"); font-weight: 400; font-display: swap; }
+@font-face { font-family: "Plex Mono"; src: url("/assets/fonts/plex-mono-500.woff2") format("woff2"); font-weight: 500; font-display: swap; }
 :root {
-  /* Kept palette: deep ink, calm teal accent, money states (held amber, released green, refunded rose). */
-  --bg: #f4f6f9;
-  --panel: #ffffff;
-  --ink: #0f1b2d;
-  --muted: #5b6b7f;
-  --line: #e2e7ee;
-  --pass: #0b7a52;
-  --pass-bg: #e3f4ec;
-  --fail: #b4232c;
-  --fail-bg: #fcebec;
-  --wait: #8f5d00;
-  --wait-bg: #fff3d6;
-  --err: #475569;
-  --err-bg: #edf0f4;
-  --accent: #0e6f6a;
-  --accent-soft: #e2f2f0;
-  --navy: #0b1d33;
-  --shadow: 0 1px 2px rgba(15, 27, 45, 0.05), 0 4px 16px rgba(15, 27, 45, 0.05);
-  --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  /* Security-print palette: paper, ink, security green; carmine for money sent back, ochre for money held. */
+  --bg: #f2f4f0;
+  --panel: #fcfdfb;
+  --well: #e8ece6;
+  --ink: #17241f;
+  --muted: #56645d;
+  --line: #cbd4cd;
+  --line-soft: #dde3dd;
+  --pass: #1f5e45;
+  --pass-bg: #dbe8df;
+  --fail: #a1243a;
+  --fail-bg: #f3dde1;
+  --wait: #8a6212;
+  --wait-bg: #f1e6cb;
+  --err: #4f5b56;
+  --err-bg: #e4e8e4;
+  --accent: #1f5e45;
+  --accent-soft: #dbe8df;
+  --sans: "Bricolage", ui-sans-serif, system-ui, sans-serif;
+  --mono: "Plex Mono", ui-monospace, Menlo, monospace;
   color-scheme: light;
 }
 * { box-sizing: border-box; }
@@ -25,32 +29,32 @@ body {
   margin: 0;
   background: var(--bg);
   color: var(--ink);
-  font: 16px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font: 16.5px/1.55 var(--sans);
+  font-variation-settings: "opsz" 14;
   -webkit-font-smoothing: antialiased;
 }
-a { color: var(--accent); }
-code, .mono { font-family: var(--mono); font-size: 0.86em; overflow-wrap: anywhere; }
-.top { display: flex; gap: 1rem; align-items: center; padding: 0.85rem clamp(1rem, 4vw, 2.5rem); background: var(--navy); color: #dbe4ee; }
-.top .tag { color: #9fb0c3; }
-.brand { display: inline-flex; align-items: center; gap: 0.5rem; font-weight: 800; font-size: 1.2rem; letter-spacing: -0.01em; text-decoration: none; color: #fff; }
-.brand::before { content: "✓"; display: inline-grid; place-items: center; width: 1.6rem; height: 1.6rem; border-radius: 7px; background: #14b8a6; color: var(--navy); font-size: 0.95rem; font-weight: 900; }
+a { color: var(--accent); text-underline-offset: 0.18em; }
+code, .mono { font-family: var(--mono); font-size: 0.82em; overflow-wrap: anywhere; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.top { display: flex; gap: 1.25rem; align-items: baseline; padding: 1.1rem clamp(1rem, 4vw, 3rem) 0.9rem; border-bottom: 1px solid var(--ink); background: var(--bg); }
+.brand { font-weight: 800; font-size: 1.55rem; letter-spacing: -0.03em; text-decoration: none; color: var(--ink); font-variation-settings: "opsz" 96; }
 .tag, .muted { color: var(--muted); }
 main, .wrap { max-width: 72rem; margin: 0 auto; padding: 1.5rem clamp(1rem, 4vw, 2.5rem) 4rem; }
-h1 { font-size: clamp(1.6rem, 3vw, 2.15rem); letter-spacing: -0.02em; margin: 0 0 0.25rem; }
-h2 { font-size: 1.2rem; margin: 2.25rem 0 0.75rem; }
+h1 { font-size: clamp(1.8rem, 3.4vw, 2.6rem); font-weight: 700; letter-spacing: -0.025em; line-height: 1.08; margin: 0 0 0.4rem; font-variation-settings: "opsz" 96; }
+h2 { font-size: 1.3rem; font-weight: 700; letter-spacing: -0.01em; margin: 2.5rem 0 0.75rem; font-variation-settings: "opsz" 48; }
 h3 { font-size: 1.05rem; margin: 0; }
-section.panel, .card { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 1.15rem 1.35rem; box-shadow: var(--shadow); }
+section.panel, .card { background: var(--panel); border: 1px solid var(--line); border-radius: 4px; padding: 1.15rem 1.35rem; }
 .head { display: flex; flex-wrap: wrap; gap: 0.75rem 1.5rem; align-items: flex-start; justify-content: space-between; }
 .facts { display: grid; grid-template-columns: max-content 1fr; gap: 0.35rem 1rem; margin: 0; }
 .facts dt { color: var(--muted); }
 .facts dd { margin: 0; min-width: 0; }
 .actions { display: flex; flex-wrap: wrap; gap: 0.6rem; }
-.btn { display: inline-block; padding: 0.55rem 1rem; border-radius: 10px; border: 1px solid var(--accent); color: var(--accent); text-decoration: none; font-weight: 600; }
+.btn { display: inline-block; padding: 0.55rem 1rem; border-radius: 3px; border: 1px solid var(--accent); color: var(--accent); text-decoration: none; font-weight: 600; }
 .btn.primary { background: var(--accent); color: var(--panel); }
 .summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr)); gap: 0.75rem; margin-top: 1rem; }
-.stat { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 0.85rem 1rem; }
-.stat b { display: block; font-size: 1.45rem; }
-.badge { display: inline-block; padding: 0.1rem 0.55rem; border-radius: 999px; font-size: 0.82rem; font-weight: 600; white-space: nowrap; }
+.stat { background: var(--panel); border: 1px solid var(--line); border-radius: 4px; padding: 0.85rem 1rem; }
+.stat b { display: block; font-size: 1.55rem; font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
+.badge { display: inline-block; padding: 0.05rem 0.5rem; border-radius: 3px; font-size: 0.8rem; font-weight: 600; white-space: nowrap; }
 .v-pass, .v-passed, .v-released { color: var(--pass); background: var(--pass-bg); }
 .v-fail, .v-failed, .v-refunded { color: var(--fail); background: var(--fail-bg); }
 .v-needs_client, .v-pending, .v-approve { color: var(--wait); background: var(--wait-bg); }

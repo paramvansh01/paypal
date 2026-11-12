@@ -186,75 +186,163 @@ document.addEventListener("click", (e) => {
 });
 window.addEventListener("popstate", route);
 
+// ---------- the settlement slip ----------
+
+/** One verifier's vote on a whole milestone: fail if any item failed or was flagged, pass if every item passed. */
+function milestoneVotes(job, events) {
+  const votes = liveVotes(events);
+  const verifiers = job.checklist?.quorum?.verifiers?.map((v) => v.id) ?? ["verifier-a", "verifier-b", "verifier-c"];
+  return job.milestones.map((ms) => verifiers.map((id) => {
+    const mine = ms.items.map((it) => (votes.get(`${ms.m}.${it.i}`) ?? []).find((v) => v.verifier === id));
+    if (mine.some((v) => v && (v.injection || v.verdict === "fail"))) return { id, vote: "fail" };
+    if (mine.length && mine.every((v) => v && v.verdict === "pass")) return { id, vote: "pass" };
+    if (mine.some((v) => v)) return { id, vote: "other" };
+    return { id, vote: "none" };
+  }));
+}
+
+const STAMP = { released: "Paid", refunded: "Refunded", passed: "Passed", failed: "Failed" };
+
+/**
+ * A job drawn as a settlement slip: each milestone line carries the three
+ * verifiers' votes and the money outcome, the way a cheque carries its amount.
+ */
+function slip(job, events, { example = false, ledger = null } = {}) {
+  const cur = job.currency ?? "USD";
+  const mv = events ? milestoneVotes(job, events) : job.milestones.map((m) => m.votes ?? []);
+  const injected = events?.some((e) => e.type === "INJECTION_DETECTED");
+  return el("article", { class: `slip${example ? " slip-example" : ""}`, "aria-label": `Settlement slip for ${job.title}` },
+    el("div", { class: "slip-band", "aria-hidden": "true" }),
+    el("div", { class: "slip-body" },
+      el("header", { class: "slip-head" },
+        el("div", {},
+          el("p", { class: "slip-kind" }, example ? "Example settlement" : "Settlement slip"),
+          el("h3", { class: "slip-title" }, job.title),
+        ),
+        el("p", { class: "slip-total" }, money(job.total_cents, cur)),
+      ),
+      el("dl", { class: "slip-meta" },
+        el("dt", {}, "Contract"), el("dd", {}, el("code", {}, job.checklist_hash ? `${job.checklist_hash.slice(0, 20)}…` : "not agreed yet")),
+        el("dt", {}, "PayPal order"), el("dd", {}, el("code", {}, ledger?.paypal_order_id ?? job.paypal_order_id ?? "none yet")),
+      ),
+      el("ol", { class: "slip-lines" }, job.milestones.map((ms, k) => {
+        const state = ms.status && ms.status !== "pending" ? ms.status : ms.outcome ?? null;
+        return el("li", { class: `slip-line${state ? ` is-${state}` : ""}` },
+          el("span", { class: "ln-title" }, ms.title),
+          el("span", { class: "ln-votes", "aria-label": "Verifier votes" }, (mv[k] ?? []).map((v) =>
+            el("span", { class: `vote vote-${v.vote}`, title: `${v.id}: ${v.vote}` }, v.id.replace("verifier-", "")))),
+          el("span", { class: "ln-amt" }, money(ms.amount_cents, cur)),
+          state ? el("span", { class: `stamp stamp-${state}` }, STAMP[state] ?? state) : el("span", { class: "stamp stamp-open" }, "Open"),
+        );
+      })),
+      el("footer", { class: "slip-foot" },
+        el("span", {}, `${job.checklist?.quorum?.k ?? 2} of ${job.checklist?.quorum?.n ?? 3} verifiers must agree on every line.`),
+        injected ? el("span", { class: "slip-flag" }, "Prompt injection caught") : null,
+      ),
+    ),
+    el("div", { class: "slip-band", "aria-hidden": "true" }),
+  );
+}
+
+/** Shown on the home page before any job has settled: the flawed demo, as it settles. */
+const EXAMPLE_JOB = {
+  title: "Halcyon Crumb bakery website", currency: "USD", total_cents: 10000,
+  checklist_hash: "0b71cb82d831bf28fbe64122a8de529f01cdf87b", paypal_order_id: "70988750H3491002G",
+  checklist: { quorum: { k: 2, n: 3 } },
+  milestones: [
+    ["Home page live", "released", ["pass", "pass", "pass"]],
+    ["Menu published", "released", ["pass", "pass", "pass"]],
+    ["Contact form works", "refunded", ["fail", "fail", "fail"]],
+    ["Mobile ready and fast", "released", ["pass", "pass", "pass"]],
+  ].map(([title, status, v], m) => ({ m, title, amount_cents: 2500, status, votes: v.map((vote, i) => ({ id: `verifier-${"abc"[i]}`, vote })) })),
+};
+
+/** The most telling settled job for the home page: one with a refund if there is one. */
+async function featuredSlip(jobs) {
+  const settled = jobs.filter((j) => j.status === "SETTLED");
+  const pick = settled.find((j) => /sneaky|flawed/i.test(j.title)) ?? settled[0];
+  if (!pick) return slip(EXAMPLE_JOB, null, { example: true });
+  const [job, ev] = await Promise.all([api("GET", `/jobs/${pick.id}`), api("GET", `/jobs/${pick.id}/events`)]);
+  const node = slip(job, ev.events);
+  return el("a", { class: "slip-link", href: `/app/jobs/${job.id}`, "data-nav": true, "aria-label": `Open ${job.title}` }, node);
+}
+
 // ---------- list ----------
 
 async function listView() {
   document.title = "Kept · Proof-Carrying Payments";
   const mine = new URLSearchParams(location.search).has("mine") && state.me;
   const { jobs } = await api("GET", `/jobs?limit=100${mine ? `&party=${encodeURIComponent(state.me.party_id)}` : ""}`);
-  const demoBox = state.health?.demo_mode ? demoRunBox() : null;
   const table = jobs.length
     ? el("div", { class: "table-wrap" }, el("table", { class: "list" },
-        el("thead", {}, el("tr", {}, el("th", {}, "Job"), el("th", {}, "Status"), el("th", {}, "Amount"), el("th", {}, "Client → worker"), el("th", {}, "Posted"))),
+        el("thead", {}, el("tr", {}, el("th", {}, "Job"), el("th", {}, "Status"), el("th", { class: "num" }, "Amount"), el("th", {}, "Client and worker"), el("th", {}, "Posted"))),
         el("tbody", {}, jobs.map((j) => el("tr", { "data-job": j.id },
           el("td", {}, el("a", { href: `/app/jobs/${j.id}`, "data-nav": true }, j.title)),
           el("td", {}, badge(j.status.toLowerCase(), STEP_LABEL[j.status] ?? j.status)),
-          el("td", {}, money(j.total_cents, j.currency)),
-          el("td", { class: "muted" }, `${j.client_id} → ${j.worker_id ?? "—"}`),
+          el("td", { class: "num" }, money(j.total_cents, j.currency)),
+          el("td", { class: "muted" }, `${j.client_id} to ${j.worker_id ?? "nobody yet"}`),
           el("td", { class: "muted" }, when(j.created_at)),
         )))))
-    : el("p", { class: "muted" }, mine ? "You have no jobs yet." : "No jobs yet.");
+    : el("p", { class: "muted" }, mine ? "You have no jobs yet. Post one, or run a demo job below." : "No jobs yet. Run a demo job to see one settle.");
+  const heroSlip = await featuredSlip(mine ? [] : jobs).catch(() => slip(EXAMPLE_JOB, null, { example: true }));
   put(
     el("section", { class: "hero" },
-      el("p", { class: "eyebrow" }, "Proof-Carrying Payments, settled on PayPal"),
-      el("h1", {}, "Pay only if the work passes."),
-      el("p", { class: "lede" }, "A client and a worker agree a machine-checkable contract. PayPal holds the money. Three independent verifiers check the delivery, sign what they saw, and each milestone is released only when two of them agree it passed. Every payout comes with a Proof Receipt anyone can verify."),
-      el("div", { class: "row" },
-        state.me ? el("a", { class: "btn primary", href: "/app/new", "data-nav": true }, "Post a job") : el("button", { class: "primary", onclick: () => showSignIn() }, "Sign in to post a job"),
-        state.me ? el("a", { class: "btn", href: mine ? "/" : "/?mine", "data-nav": true }, mine ? "All jobs" : "My jobs") : null,
+      el("div", { class: "hero-copy" },
+        el("h1", {}, "Money that checks the work before it moves."),
+        el("p", { class: "lede" }, "Kept turns a job into a contract a machine can check. PayPal holds the payment. Three independent verifiers inspect the delivery in different browsers and sign what they saw. Each milestone is paid only when two of them agree it passed, and refunded when they agree it failed."),
+        el("div", { class: "row" },
+          state.me ? el("a", { class: "btn primary", href: "/app/new", "data-nav": true }, "Post a job") : el("button", { class: "primary", onclick: () => showSignIn() }, "Sign in to post a job"),
+          state.me ? el("a", { class: "btn", href: mine ? "/" : "/?mine", "data-nav": true }, mine ? "All jobs" : "My jobs") : null,
+          el("a", { class: "btn quiet", href: "#demo" }, "Watch one settle"),
+        ),
       ),
-      el("ol", { class: "how" },
-        howStep("1", "Agree", "The brief becomes a contract. Its SHA-256 fingerprint is stamped on the PayPal order."),
-        howStep("2", "Hold", "The client approves once. PayPal holds the funds, not Kept."),
-        howStep("3", "Verify", "Three verifiers in different browsers check every item, watch for prompt injection and sign their evidence."),
-        howStep("4", "Settle", "Each milestone the quorum passed is paid to the worker; each one that failed goes back to the client."),
+      el("div", { class: "hero-slip" }, heroSlip),
+    ),
+    el("section", { class: "steps-wrap" },
+      el("h2", {}, "How a payment settles"),
+      el("ol", { class: "steps" },
+        howStep("Agree", "The brief becomes a contract of checkable items. Its SHA-256 fingerprint is written onto the PayPal order."),
+        howStep("Hold", "The client approves once in PayPal. PayPal holds the money; Kept never does."),
+        howStep("Verify", "Three verifiers in Chromium and WebKit check every item, look for hidden instructions aimed at AI, and sign their evidence."),
+        howStep("Settle", "Kept re-checks every signature, then captures the passed milestones and lets PayPal return the rest."),
       ),
     ),
-    demoBox,
-    el("h2", {}, mine ? "My jobs" : "Jobs"),
+    state.health?.demo_mode ? demoRunBox() : null,
+    el("h2", {}, mine ? "My jobs" : "Recent jobs"),
     table,
   );
-  timer = setTimeout(() => location.pathname === "/" && listView().catch(() => {}), 4000);
+  timer = setTimeout(() => location.pathname === "/" && !document.querySelector(".demo button:disabled") && listView().catch(() => {}), 6000);
 }
 
-function howStep(n, title, text) {
-  return el("li", {}, el("span", { class: "how-n" }, n), el("b", {}, title), el("span", {}, text));
+function howStep(title, text) {
+  return el("li", {}, el("b", {}, title), el("span", {}, text));
 }
 
 function demoRunBox() {
   const err = el("p", { class: "form-error" });
   const start = async (site, btn) => {
     btn.disabled = true;
+    btn.textContent = "Starting…";
     try {
       const r = await api("POST", "/demo/run", { site });
       go(`/app/jobs/${r.job_id}`);
     } catch (e) {
       err.textContent = e.message;
       btn.disabled = false;
+      btn.textContent = "Run this job";
     }
   };
-  const card = (site, title, text, expect, cls) => {
-    const b = el("button", { class: `demo-card ${cls}`, onclick: () => start(site, b) },
-      el("b", {}, title), el("span", {}, text), el("span", { class: "expect" }, expect));
-    return b;
+  const row = (site, title, text, expect, tone) => {
+    const b = el("button", { onclick: () => start(site, b) }, "Run this job");
+    return el("li", {}, el("div", {}, el("b", {}, title), el("span", { class: "muted" }, text)), el("span", { class: `expect expect-${tone}` }, expect), b);
   };
-  return el("section", { class: "panel demo" },
-    el("h2", { class: "flush" }, "Run the demo"),
-    el("p", { class: "muted" }, "Two AI agents do a whole job over Kept's MCP server: the buyer posts a bakery-website job worth 4 × $25 and pays, the worker delivers, the verifier quorum checks it, and settlement pays or refunds each milestone."),
-    el("div", { class: "demo-cards" },
-      card("good", "Good delivery", "Everything in the contract works.", "4 of 4 released", "ok"),
-      card("flawed", "Flawed delivery", "The contact form does not submit.", "3 released · 1 refunded", "mixed"),
-      card("sneaky", "Sneaky delivery", "Same broken form, plus hidden text telling the AI judge it works.", "Injection caught · 1 refunded", "bad"),
+  return el("section", { class: "demo", id: "demo" },
+    el("h2", {}, "Run a demo job"),
+    el("p", { class: "muted measure" }, "A buyer agent and a worker agent do the whole job over Kept's MCP server: post a $100 bakery website job in four milestones, pay, deliver, verify, settle. Pick what the worker delivers."),
+    el("ol", { class: "demo-rows" },
+      row("good", "Good delivery", "Everything in the contract works.", "4 paid", "pass"),
+      row("flawed", "Flawed delivery", "The contact form does not submit.", "3 paid, 1 refunded", "mixed"),
+      row("sneaky", "Sneaky delivery", "The same broken form, plus hidden text telling the AI judge that it works.", "Injection caught, 1 refunded", "fail"),
     ),
     err,
   );
@@ -356,18 +444,19 @@ async function detailView(id, opts = {}) {
 
   const role = state.me ? (state.me.party_id === job.client_id ? "client" : state.me.party_id === job.worker_id ? "worker" : null) : null;
   put(
-    el("p", {}, el("a", { href: "/", "data-nav": true }, "← All jobs")),
-    el("div", { class: "head" },
-      el("div", {},
+    el("p", { class: "back" }, el("a", { href: "/", "data-nav": true }, "All jobs")),
+    el("div", { class: "job-top" },
+      el("div", { class: "job-main" },
+        el("div", { class: "job-status" }, badge(job.status.toLowerCase(), STEP_LABEL[job.status] ?? job.status)),
         el("h1", {}, job.title),
-        el("p", { class: "muted" }, job.brief),
+        el("p", { class: "muted measure" }, job.brief),
+        stepper(job.status),
+        injectionAlert(ev.events),
+        run && run.stage !== "done" ? demoRunPanel(id, run) : null,
+        role ? actionPanel(job, role) : null,
       ),
-      el("div", { class: "row" }, badge(job.status.toLowerCase(), STEP_LABEL[job.status] ?? job.status), el("b", {}, money(job.total_cents, job.currency))),
+      el("div", { class: "job-slip" }, slip(job, ev.events, { ledger })),
     ),
-    stepper(job.status),
-    injectionAlert(ev.events),
-    run && run.stage !== "done" ? demoRunPanel(id, run) : null,
-    role ? actionPanel(job, role) : null,
     moneyPanel(job, ledger),
     proofPanel(job),
     run && run.stage === "done" ? demoRunPanel(id, run) : null,
@@ -552,25 +641,10 @@ function paypalFees(id, ledger) {
 function moneyPanel(job, ledger) {
   if (!ledger) return el("section", { class: "panel gap-top" }, el("h2", { class: "flush" }, "Money"), el("p", { class: "muted" }, "No money view."));
   const cur = ledger.currency;
-  const total = ledger.total_cents || 1;
-  const funded = ledger.held_cents + ledger.released_cents + ledger.refunded_cents;
-  const seg = (cls, cents, label) => {
-    if (!cents) return null;
-    const node = el("span", { class: `seg ${cls}`, title: `${label}: ${money(cents, cur)}` }, cents / total > 0.12 ? money(cents, cur) : "");
-    node.style.flexGrow = String(cents); // CSSOM, allowed under the CSP (no inline style attribute)
-    return node;
-  };
-  const unfunded = Math.max(0, ledger.total_cents - funded);
-  return el("section", { class: "panel gap-top", "data-panel": "money" },
+  return el("section", { class: "money", "data-panel": "money" },
     el("div", { class: "ms-head" },
-      el("h2", { class: "flush" }, "Money"),
+      el("h2", {}, "Money"),
       el("span", { class: "muted fine" }, ledger.paypal_order_id ? el("span", {}, "PayPal order ", el("code", {}, ledger.paypal_order_id)) : "No PayPal order yet"),
-    ),
-    el("div", { class: "flow", role: "img", "aria-label": `Held ${money(ledger.held_cents, cur)}, released ${money(ledger.released_cents, cur)}, refunded ${money(ledger.refunded_cents, cur)}` },
-      seg("released", ledger.released_cents, "Released to worker"),
-      seg("refunded", ledger.refunded_cents, "Back to client"),
-      seg("held", ledger.held_cents, "Held by PayPal"),
-      seg("unfunded", unfunded, "Not funded yet"),
     ),
     el("div", { class: "summary money-stats" },
       stat("Held by PayPal", money(ledger.held_cents, cur), "held"),
@@ -626,9 +700,10 @@ function mountLedger(job, ledger, pp) {
   ledgerGrid = ag.createGrid(host, {
     styleNonce: nonce,
     theme: ag.themeQuartz.withParams({
-      accentColor: "#0e6f6a", foregroundColor: "#0f1b2d", borderColor: "#e2e7ee", headerBackgroundColor: "#f4f6f9",
-      headerTextColor: "#5b6b7f", fontFamily: "inherit", fontSize: 14, rowHeight: 44, headerHeight: 40, wrapperBorderRadius: 12,
-      oddRowBackgroundColor: "#fbfcfd",
+      accentColor: "#1f5e45", foregroundColor: "#17241f", backgroundColor: "#fcfdfb", borderColor: "#cbd4cd",
+      headerBackgroundColor: "#e8ece6", headerTextColor: "#17241f", headerFontWeight: 600, oddRowBackgroundColor: "#f6f8f5",
+      fontFamily: "Bricolage, ui-sans-serif, system-ui, sans-serif", fontSize: 14.5, rowHeight: 44, headerHeight: 40,
+      wrapperBorderRadius: 2, borderRadius: 2,
     }),
     domLayout: "autoHeight",
     suppressCellFocus: true,
