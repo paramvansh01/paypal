@@ -45,26 +45,46 @@ input.note { max-width: 20rem; }
 .slip-link:hover .slip { border-color: var(--accent); }
 
 .steps { list-style: none; counter-reset: step; padding: 0; margin: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); border-top: 2px solid var(--ink); }
-.steps li { counter-increment: step; padding: 1rem 1.25rem 0.5rem 0; display: grid; gap: 0.35rem; align-content: start; position: relative; }
+.steps li { counter-increment: step; padding: 1.1rem 1.25rem 0.5rem 0; display: grid; gap: 0.35rem; align-content: start; position: relative; }
+.step-art { height: 2.2rem; display: flex; align-items: center; margin-bottom: 0.35rem; }
+.art-hash { font-size: 0.78rem; background: var(--well); padding: 0.2rem 0.45rem; border-radius: 2px; }
+.art-held { font-weight: 700; color: var(--wait); border-bottom: 2px solid var(--wait); font-variant-numeric: tabular-nums; }
+.art-stamps { display: flex; gap: 0.4rem; }
+.art-stamps .stamp { font-size: 0.7rem; }
 .steps li + li { padding-left: 1.25rem; border-left: 1px solid var(--line); }
 .steps li::before { content: counter(step); font-family: var(--mono); font-size: 0.8rem; color: var(--muted); }
 .steps b { font-size: 1.2rem; letter-spacing: -0.01em; }
-.steps span { color: var(--muted); font-size: 0.95rem; }
+.steps li > span { color: var(--muted); font-size: 0.95rem; }
 
 .demo-rows { list-style: none; padding: 0; margin: 1rem 0 0; border-top: 1px solid var(--ink); }
-.demo-rows li { display: grid; grid-template-columns: minmax(0, 1fr) 14rem auto; gap: 1rem; align-items: center; padding: 0.9rem 0; border-bottom: 1px solid var(--line); }
+.demo-rows li { display: grid; grid-template-columns: minmax(0, 1fr) 19rem auto; gap: 1rem; align-items: center; padding: 0.9rem 0; border-bottom: 1px solid var(--line); }
 .demo-rows li > div { display: grid; gap: 0.1rem; }
 .demo-rows b { font-size: 1.08rem; }
-.expect { font-size: 0.88rem; font-weight: 600; }
-.expect-pass { color: var(--pass); }
-.expect-mixed { color: var(--wait); }
-.expect-fail { color: var(--fail); }
+.expect { display: grid; gap: 0.25rem; justify-items: start; }
+.mini-stamps { display: flex; gap: 0.3rem; }
+.mini { font-size: 0.68rem; font-weight: 800; letter-spacing: 0.03em; padding: 0.05rem 0.3rem; border: 1.5px solid currentColor; border-radius: 2px; }
+.mini-paid { color: var(--pass); }
+.mini-refund { color: var(--fail); transform: rotate(-4deg); }
+.expect-note { font-size: 0.82rem; font-weight: 700; color: var(--fail); }
 
 .list { width: 100%; min-width: 40rem; }
 .list th { border-bottom: 1px solid var(--ink); }
 .list td, .list th { padding: 0.65rem 0.6rem; }
 .list a { font-weight: 600; text-decoration: none; color: var(--ink); }
 .list a:hover { text-decoration: underline; }
+
+.checked { margin-top: 1rem; }
+.checked-cols { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); border-top: 2px solid var(--ink); }
+.checked-cols > div { padding: 1.1rem 1.5rem 0.5rem 0; }
+.checked-cols > div + div { padding-left: 1.5rem; border-left: 1px solid var(--line); }
+.checked h3 { font-size: 1.15rem; margin: 0 0 0.4rem; }
+.checked .muted { max-width: 34rem; }
+.codeblock { font-family: var(--mono); font-size: 0.82rem; background: var(--ink); color: #e3ebe6; padding: 0.75rem 0.9rem; border-radius: 3px; overflow-x: auto; margin: 0.75rem 0; white-space: pre; }
+.tool-list { display: flex; flex-wrap: wrap; gap: 0.35rem; margin: 0; }
+.tool-list code { background: var(--well); padding: 0.1rem 0.4rem; border-radius: 2px; }
+.site-foot { margin-top: 3.5rem; padding-top: 1.1rem; border-top: 1px solid var(--ink); display: flex; flex-wrap: wrap; justify-content: space-between; gap: 0.75rem; font-size: 0.9rem; color: var(--muted); }
+.site-foot p { margin: 0; }
+.foot-links { display: flex; gap: 1.25rem; }
 
 /* ---------- the settlement slip ---------- */
 .slip { background: var(--panel); border: 1px solid var(--ink); border-radius: 2px; }
@@ -162,6 +182,8 @@ table.narrow { min-width: 24rem; }
   .steps li:nth-child(3) { border-left: 0; padding-left: 0; }
   .demo-rows li { grid-template-columns: 1fr; gap: 0.4rem; }
   .demo-rows li button { justify-self: start; }
+  .checked-cols { grid-template-columns: 1fr; }
+  .checked-cols > div + div { padding-left: 0; border-left: 0; border-top: 1px solid var(--line); }
 }
 @media (max-width: 520px) {
   .steps { grid-template-columns: 1fr; }

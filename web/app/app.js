@@ -301,21 +301,60 @@ async function listView() {
     el("section", { class: "steps-wrap" },
       el("h2", {}, "How a payment settles"),
       el("ol", { class: "steps" },
-        howStep("Agree", "The brief becomes a contract of checkable items. Its SHA-256 fingerprint is written onto the PayPal order."),
-        howStep("Hold", "The client approves once in PayPal. PayPal holds the money; Kept never does."),
-        howStep("Verify", "Three verifiers in Chromium and WebKit check every item, look for hidden instructions aimed at AI, and sign their evidence."),
-        howStep("Settle", "Kept re-checks every signature, then captures the passed milestones and lets PayPal return the rest."),
+        howStep("Agree", "The brief becomes a contract of checkable items. Its SHA-256 fingerprint is written onto the PayPal order.",
+          el("code", { class: "art-hash" }, "custom_id 0b71cb82d831…")),
+        howStep("Hold", "The client approves once in PayPal. PayPal holds the money; Kept never does.",
+          el("span", { class: "art-held" }, "$100.00 held")),
+        howStep("Verify", "Three verifiers in Chromium and WebKit check every item, look for hidden instructions aimed at AI, and sign their evidence.",
+          el("span", { class: "ln-votes" }, ["a", "b", "c"].map((v) => el("span", { class: "vote vote-pass" }, v)))),
+        howStep("Settle", "Kept re-checks every signature, then captures the passed milestones and lets PayPal return the rest.",
+          el("span", { class: "art-stamps" }, el("span", { class: "stamp stamp-released" }, "Paid"), el("span", { class: "stamp stamp-refunded" }, "Refunded"))),
       ),
     ),
     state.health?.demo_mode ? demoRunBox() : null,
+    checkedSection(),
     el("h2", {}, mine ? "My jobs" : "Recent jobs"),
     table,
+    siteFooter(),
   );
   timer = setTimeout(() => location.pathname === "/" && !document.querySelector(".demo button:disabled") && listView().catch(() => {}), 6000);
 }
 
-function howStep(title, text) {
-  return el("li", {}, el("b", {}, title), el("span", {}, text));
+function howStep(title, text, art) {
+  return el("li", {}, el("div", { class: "step-art", "aria-hidden": "true" }, art), el("b", {}, title), el("span", {}, text));
+}
+
+/** For the two audiences who need to trust a settlement: agents that pay, and people who check. */
+function checkedSection() {
+  const tools = ["post_job", "accept_checklist", "lock_funds", "submit_work", "verify", "settle", "get_receipt"];
+  return el("section", { class: "checked" },
+    el("h2", {}, "Built to be checked"),
+    el("div", { class: "checked-cols" },
+      el("div", {},
+        el("h3", {}, "Agents pay through MCP"),
+        el("p", { class: "muted" }, "Any MCP client can hire, deliver and get paid with Kept's tools. Each agent acts with its own party token, so it can only do what its role allows."),
+        el("pre", { class: "codeblock" }, `POST ${location.origin}/mcp\nAuthorization: Bearer <party token>`),
+        el("p", { class: "tool-list" }, tools.map((t) => el("code", {}, t))),
+      ),
+      el("div", {},
+        el("h3", {}, "Anyone can verify a receipt"),
+        el("p", { class: "muted" }, "Every settlement comes with a Proof Receipt: the contract, each verifier's signed evidence and the PayPal IDs. Check it offline with plain Node, no install. Change one byte and it fails, naming the part that broke."),
+        el("pre", { class: "codeblock" }, "node tools/verify-receipt.mjs kept-receipt.json"),
+        el("p", { class: "muted fine" }, "Verifier keys are published at ", el("a", { href: "/.well-known/kept/verifiers.json" }, "/.well-known/kept/verifiers.json"), "."),
+      ),
+    ),
+  );
+}
+
+function siteFooter() {
+  return el("footer", { class: "site-foot" },
+    el("p", {}, el("b", {}, "Kept"), " is open source under the MIT licence. Payments run in the PayPal sandbox; no real money moves."),
+    el("p", { class: "foot-links" },
+      el("a", { href: "https://github.com/paramvansh01/paypal", rel: "noopener" }, "Source on GitHub"),
+      el("a", { href: "https://github.com/paramvansh01/paypal/blob/main/docs/PROTOCOL.md", rel: "noopener" }, "Protocol spec"),
+      el("a", { href: "/health" }, "Server status"),
+    ),
+  );
 }
 
 function demoRunBox() {
@@ -332,17 +371,24 @@ function demoRunBox() {
       btn.textContent = "Run this job";
     }
   };
-  const row = (site, title, text, expect, tone) => {
+  const row = (site, title, text, outcome, note) => {
     const b = el("button", { onclick: () => start(site, b) }, "Run this job");
-    return el("li", {}, el("div", {}, el("b", {}, title), el("span", { class: "muted" }, text)), el("span", { class: `expect expect-${tone}` }, expect), b);
+    const paid = outcome.filter((o) => o === "P").length;
+    return el("li", {},
+      el("div", {}, el("b", {}, title), el("span", { class: "muted" }, text)),
+      el("div", { class: "expect", "aria-label": `Expected: ${paid} of 4 milestones paid${note ? `, ${note}` : ""}` },
+        el("span", { class: "mini-stamps", "aria-hidden": "true" }, outcome.map((o) => el("span", { class: `mini ${o === "P" ? "mini-paid" : "mini-refund"}` }, o === "P" ? "Paid" : "Refund"))),
+        note ? el("span", { class: "expect-note" }, note) : null,
+      ),
+      b);
   };
   return el("section", { class: "demo", id: "demo" },
     el("h2", {}, "Run a demo job"),
     el("p", { class: "muted measure" }, "A buyer agent and a worker agent do the whole job over Kept's MCP server: post a $100 bakery website job in four milestones, pay, deliver, verify, settle. Pick what the worker delivers."),
     el("ol", { class: "demo-rows" },
-      row("good", "Good delivery", "Everything in the contract works.", "4 paid", "pass"),
-      row("flawed", "Flawed delivery", "The contact form does not submit.", "3 paid, 1 refunded", "mixed"),
-      row("sneaky", "Sneaky delivery", "The same broken form, plus hidden text telling the AI judge that it works.", "Injection caught, 1 refunded", "fail"),
+      row("good", "Good delivery", "Everything in the contract works.", ["P", "P", "P", "P"]),
+      row("flawed", "Flawed delivery", "The contact form does not submit.", ["P", "P", "R", "P"]),
+      row("sneaky", "Sneaky delivery", "The same broken form, plus hidden text telling the AI judge that it works.", ["P", "P", "R", "P"], "injection caught"),
     ),
     err,
   );
