@@ -1,3 +1,7 @@
+import { randomBytes } from "node:crypto";
+import { readFileSync } from "node:fs";
+import { createRequire } from "node:module";
+import { basename, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import express, { type Express } from "express";
 import type { Config } from "../config.js";
@@ -39,6 +43,21 @@ const REPORT_CSP = [
   "form-action 'none'",
   "frame-ancestors 'none'",
 ].join("; ");
+
+/**
+ * The web app embeds AG Grid (the money ledger), which writes its theme as <style>
+ * elements at runtime. Rather than allow inline styles, each app page gets a fresh
+ * nonce: AG Grid stamps it on its own <style> tags (gridOptions.styleNonce) and the
+ * page reads it from <meta name="csp-nonce">. Scripts stay 'self' only.
+ */
+const appCsp = (nonce: string) => REPORT_CSP.replace("style-src 'self'", `style-src 'self' 'nonce-${nonce}'`);
+
+/** AG Grid Community's browser bundle (MIT), served from node_modules so there is no CDN. */
+const AG_GRID_DIST = (() => {
+  let dir = dirname(createRequire(import.meta.url).resolve("ag-grid-community"));
+  while (basename(dir) !== "ag-grid-community" && dirname(dir) !== dir) dir = dirname(dir);
+  return join(dir, "dist");
+})();
 
 export interface AppDeps {
   db?: Db;
@@ -145,7 +164,15 @@ export function createApp(config: Config, deps: AppDeps = {}): Express {
     res.set("X-Content-Type-Options", "nosniff");
     next();
   }, express.static(APP_DIR, { index: false, maxAge: 0 }));
-  app.get(["/", "/app/new", "/app/jobs/:id"], page(APP_DIR));
+  app.get("/assets/vendor/ag-grid-community.min.js", (_req, res) => {
+    res.set({ "X-Content-Type-Options": "nosniff", "Cache-Control": "public, max-age=86400" }).type("text/javascript").sendFile("ag-grid-community.min.noStyle.js", { root: AG_GRID_DIST });
+  });
+  app.get(["/", "/app/new", "/app/jobs/:id"], (_req, res) => {
+    const appHtml = readFileSync(join(APP_DIR, "index.html"), "utf8");
+    const nonce = randomBytes(16).toString("base64");
+    res.set({ "Content-Security-Policy": appCsp(nonce), "X-Content-Type-Options": "nosniff", "Referrer-Policy": "no-referrer", "Cache-Control": "no-store" });
+    res.type("html").send(appHtml.replaceAll("__CSP_NONCE__", nonce));
+  });
 
   // The MCP server (T4.1): Streamable HTTP, stateless, one MCP server per request
   // bound to the party whose bearer token came with it.

@@ -92,7 +92,10 @@ describe("web app", () => {
     await w.locator(".stepper li.now", { hasText: "Settled" }).waitFor();
     const moneyText = await w.locator("[data-panel=money]").innerText();
     expect(moneyText).toMatch(/Released to worker\s*\$75\.00/);
-    expect(moneyText).toMatch(/Refunded to client\s*\$25\.00/);
+    expect(moneyText).toMatch(/Back to client\s*\$25\.00/);
+    // T5.3: the AG Grid ledger renders under the nonce CSP (no CSP console errors, checked above).
+    expect(await w.locator("[data-panel=money] .ag-root").count()).toBe(1);
+    expect(moneyText).toMatch(/PayPal fee/);
     expect(moneyText).toContain("OFFLINE-REFUND-");
     expect(await w.getByRole("link", { name: "Download Proof Receipt" }).getAttribute("href")).toMatch(/\/receipt\?download=1$/);
     expect(await w.locator(".timeline li").count()).toBeGreaterThan(8);

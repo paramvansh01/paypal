@@ -9,6 +9,8 @@
 const app = document.getElementById("app");
 const who = document.getElementById("who");
 const bannerEl = document.getElementById("banner");
+/** Replace the page body, skipping empty slots (null/false) instead of printing them. */
+const put = (...kids) => app.replaceChildren(...kids.flat().filter((k) => k !== null && k !== undefined && k !== false));
 
 // ---------- small helpers ----------
 
@@ -145,7 +147,7 @@ function showSignIn(message) {
             }
           } }, `Act as the demo ${role}`)))
     : null;
-  app.replaceChildren(
+  put(
     el("h1", {}, "Sign in"),
     el("section", { class: "panel" },
       el("p", {}, "Kept parties sign in with a party token. Print one with ", el("code", {}, "npm run party-token -- <party_id>"), "."),
@@ -202,13 +204,20 @@ async function listView() {
           el("td", { class: "muted" }, when(j.created_at)),
         )))))
     : el("p", { class: "muted" }, mine ? "You have no jobs yet." : "No jobs yet.");
-  app.replaceChildren(
+  put(
     el("section", { class: "hero" },
+      el("p", { class: "eyebrow" }, "Proof-Carrying Payments, settled on PayPal"),
       el("h1", {}, "Pay only if the work passes."),
-      el("p", {}, "A client and a worker agree a machine-checkable contract. PayPal holds the money. Three independent verifiers check the delivery, sign what they saw, and each milestone is released only when two of them agree it passed. Every payout comes with a Proof Receipt anyone can verify."),
+      el("p", { class: "lede" }, "A client and a worker agree a machine-checkable contract. PayPal holds the money. Three independent verifiers check the delivery, sign what they saw, and each milestone is released only when two of them agree it passed. Every payout comes with a Proof Receipt anyone can verify."),
       el("div", { class: "row" },
         state.me ? el("a", { class: "btn primary", href: "/app/new", "data-nav": true }, "Post a job") : el("button", { class: "primary", onclick: () => showSignIn() }, "Sign in to post a job"),
         state.me ? el("a", { class: "btn", href: mine ? "/" : "/?mine", "data-nav": true }, mine ? "All jobs" : "My jobs") : null,
+      ),
+      el("ol", { class: "how" },
+        howStep("1", "Agree", "The brief becomes a contract. Its SHA-256 fingerprint is stamped on the PayPal order."),
+        howStep("2", "Hold", "The client approves once. PayPal holds the funds, not Kept."),
+        howStep("3", "Verify", "Three verifiers in different browsers check every item, watch for prompt injection and sign their evidence."),
+        howStep("4", "Settle", "Each milestone the quorum passed is paid to the worker; each one that failed goes back to the client."),
       ),
     ),
     demoBox,
@@ -216,6 +225,10 @@ async function listView() {
     table,
   );
   timer = setTimeout(() => location.pathname === "/" && listView().catch(() => {}), 4000);
+}
+
+function howStep(n, title, text) {
+  return el("li", {}, el("span", { class: "how-n" }, n), el("b", {}, title), el("span", {}, text));
 }
 
 function demoRunBox() {
@@ -230,17 +243,18 @@ function demoRunBox() {
       btn.disabled = false;
     }
   };
-  const button = (site, label) => {
-    const b = el("button", { onclick: () => start(site, b) }, label);
+  const card = (site, title, text, expect, cls) => {
+    const b = el("button", { class: `demo-card ${cls}`, onclick: () => start(site, b) },
+      el("b", {}, title), el("span", {}, text), el("span", { class: "expect" }, expect));
     return b;
   };
-  return el("section", { class: "panel action" },
-    el("h2", {}, "Run the demo"),
-    el("p", {}, "Two AI agents do a whole job over Kept's MCP server: the buyer posts a bakery website job and pays, the worker delivers, the verifier quorum checks it, and settlement pays or refunds each $25 milestone."),
-    el("div", { class: "row" },
-      button("good", "Good delivery (all pass)"),
-      button("flawed", "Flawed delivery (contact form broken)"),
-      button("sneaky", "Sneaky delivery (hides a prompt injection)"),
+  return el("section", { class: "panel demo" },
+    el("h2", { class: "flush" }, "Run the demo"),
+    el("p", { class: "muted" }, "Two AI agents do a whole job over Kept's MCP server: the buyer posts a bakery-website job worth 4 × $25 and pays, the worker delivers, the verifier quorum checks it, and settlement pays or refunds each milestone."),
+    el("div", { class: "demo-cards" },
+      card("good", "Good delivery", "Everything in the contract works.", "4 of 4 released", "ok"),
+      card("flawed", "Flawed delivery", "The contact form does not submit.", "3 released · 1 refunded", "mixed"),
+      card("sneaky", "Sneaky delivery", "Same broken form, plus hidden text telling the AI judge it works.", "Injection caught · 1 refunded", "bad"),
     ),
     err,
   );
@@ -300,7 +314,7 @@ async function newJobView() {
       submit.disabled = false;
     }
   } }, "Post job and propose this contract");
-  app.replaceChildren(
+  put(
     el("p", {}, el("a", { href: "/", "data-nav": true }, "← All jobs")),
     el("h1", {}, "Post a job"),
     el("section", { class: "panel" },
@@ -330,17 +344,18 @@ async function detailView(id, opts = {}) {
     state.health?.demo_mode ? api("GET", `/demo/runs/${id}`).then((r) => (r.stage ? r : null)).catch(() => null) : null,
   ]);
   if (!job) {
-    app.replaceChildren(el("h1", {}, "Not found"), el("p", { class: "muted" }, `There is no job ${id}.`), el("a", { href: "/", "data-nav": true }, "← All jobs"));
+    put(el("h1", {}, "Not found"), el("p", { class: "muted" }, `There is no job ${id}.`), el("a", { href: "/", "data-nav": true }, "← All jobs"));
     return;
   }
-  const snapshot = JSON.stringify([job, ledger, ev, run, state.me?.party_id]);
+  const pp = paypalFees(id, ledger);
+  const snapshot = JSON.stringify([job, ledger, ev, run, state.me?.party_id, pp]);
   const typing = document.activeElement && ["INPUT", "TEXTAREA", "SELECT"].includes(document.activeElement.tagName) && app.contains(document.activeElement);
   if (opts.poll && (snapshot === lastSnapshot || typing)) return schedule(id, job, run);
   lastSnapshot = snapshot;
   document.title = `${job.title} · Kept`;
 
   const role = state.me ? (state.me.party_id === job.client_id ? "client" : state.me.party_id === job.worker_id ? "worker" : null) : null;
-  app.replaceChildren(
+  put(
     el("p", {}, el("a", { href: "/", "data-nav": true }, "← All jobs")),
     el("div", { class: "head" },
       el("div", {},
@@ -352,12 +367,14 @@ async function detailView(id, opts = {}) {
     stepper(job.status),
     run ? demoRunPanel(id, run) : null,
     actionPanel(job, role),
-    el("div", { class: "grid2 gap-top" }, moneyPanel(job, ledger), proofPanel(job)),
+    moneyPanel(job, ledger),
+    proofPanel(job),
     contractPanel(job, role, liveVotes(ev.events)),
     timelinePanel(ev.events),
   );
   const log = app.querySelector(".log");
   if (log) log.scrollTop = log.scrollHeight;
+  mountLedger(job, ledger, pp);
   schedule(id, job, run);
 }
 
@@ -497,30 +514,125 @@ function actionPanel(job, role) {
   return el("section", { class: "panel action gap-top" }, el("h2", {}, role ? `Next step (you are the ${role})` : "Next step"), kids, err);
 }
 
+// ---------- money: flow bar + AG Grid ledger (T5.3) ----------
+
+/**
+ * PayPal's own fee and net per capture (GET /jobs/:id/paypal). Fetched only when
+ * the money state changes, then cached, so polling the page never polls PayPal.
+ */
+const paypalCache = new Map();
+function paypalFees(id, ledger) {
+  if (state.health?.money !== "paypal_sandbox" || !ledger?.paypal_order_id) return null;
+  const key = `${ledger.paypal_order_id}|${ledger.status}|${ledger.released_cents}|${ledger.refunded_cents}`;
+  const hit = paypalCache.get(id);
+  if (hit?.key === key) return hit.data;
+  if (!hit?.loading || hit.key !== key) {
+    paypalCache.set(id, { key, loading: true, data: hit?.data ?? null });
+    api("GET", `/jobs/${id}/paypal`)
+      .then((data) => paypalCache.set(id, { key, data }))
+      .catch(() => paypalCache.set(id, { key, data: { error: true } }))
+      .finally(() => { if (location.pathname === `/app/jobs/${id}`) detailView(id).catch(() => {}); });
+  }
+  return hit?.data ?? null;
+}
+
 function moneyPanel(job, ledger) {
-  if (!ledger) return el("section", { class: "panel" }, el("h2", {}, "Money"), el("p", { class: "muted" }, "No money view."));
+  if (!ledger) return el("section", { class: "panel gap-top" }, el("h2", { class: "flush" }, "Money"), el("p", { class: "muted" }, "No money view."));
   const cur = ledger.currency;
-  return el("section", { class: "panel", "data-panel": "money" },
-    el("h2", { class: "flush" }, "Money"),
-    el("div", { class: "summary flush" },
-      stat("Held by PayPal", money(ledger.held_cents, cur)),
-      stat("Released to worker", money(ledger.released_cents, cur)),
-      stat("Refunded to client", money(ledger.refunded_cents, cur)),
+  const total = ledger.total_cents || 1;
+  const funded = ledger.held_cents + ledger.released_cents + ledger.refunded_cents;
+  const seg = (cls, cents, label) => {
+    if (!cents) return null;
+    const node = el("span", { class: `seg ${cls}`, title: `${label}: ${money(cents, cur)}` }, cents / total > 0.12 ? money(cents, cur) : "");
+    node.style.flexGrow = String(cents); // CSSOM, allowed under the CSP (no inline style attribute)
+    return node;
+  };
+  const unfunded = Math.max(0, ledger.total_cents - funded);
+  return el("section", { class: "panel gap-top", "data-panel": "money" },
+    el("div", { class: "ms-head" },
+      el("h2", { class: "flush" }, "Money"),
+      el("span", { class: "muted fine" }, ledger.paypal_order_id ? el("span", {}, "PayPal order ", el("code", {}, ledger.paypal_order_id)) : "No PayPal order yet"),
     ),
-    el("dl", { class: "facts gap-top" },
-      el("dt", {}, "PayPal order"), el("dd", { class: "mono" }, ledger.paypal_order_id ?? "—"),
-      el("dt", {}, "Contract on order"), el("dd", { class: "mono" }, job.checklist_frozen ? `custom_id = ${job.checklist_hash}` : "— (not agreed yet)"),
+    el("div", { class: "flow", role: "img", "aria-label": `Held ${money(ledger.held_cents, cur)}, released ${money(ledger.released_cents, cur)}, refunded ${money(ledger.refunded_cents, cur)}` },
+      seg("released", ledger.released_cents, "Released to worker"),
+      seg("refunded", ledger.refunded_cents, "Back to client"),
+      seg("held", ledger.held_cents, "Held by PayPal"),
+      seg("unfunded", unfunded, "Not funded yet"),
     ),
-    el("div", { class: "table-wrap" }, el("table", { class: "narrow" },
-      el("thead", {}, el("tr", {}, el("th", {}, "Milestone"), el("th", {}, "Gross"), el("th", {}, "Status"), el("th", {}, "PayPal ID"))),
-      el("tbody", {}, ledger.milestones.map((m) => el("tr", {},
-        el("td", {}, m.title), el("td", {}, money(m.amount_cents, cur)), el("td", {}, badge(m.status)),
-        el("td", { class: "mono fine" }, m.paypal.release_id ?? m.paypal.refund_id ?? m.paypal.capture_id ?? "—"),
-      ))),
-    )),
+    el("div", { class: "summary money-stats" },
+      stat("Held by PayPal", money(ledger.held_cents, cur), "held"),
+      stat("Released to worker", money(ledger.released_cents, cur), "released"),
+      stat("Back to client", money(ledger.refunded_cents, cur), "refunded"),
+    ),
+    el("div", { id: "ledger-grid", class: "ledger-grid" }),
+    el("p", { class: "muted fine" },
+      job.checklist_frozen ? el("span", {}, "Contract fingerprint on the order: ", el("code", {}, `custom_id = ${job.checklist_hash.slice(0, 16)}…`), ". ") : null,
+      state.health?.money === "paypal_sandbox" ? "Fee and net are PayPal's own numbers, read back from the PayPal sandbox." : "Fee and net appear when the PayPal sandbox rail is connected.",
+    ),
     job.hold ? holdNote(job.hold) : null,
-    el("p", { class: "muted fine" }, "Amounts are gross. PayPal deducts its fee on the worker's side; fee and net appear here once the PayPal rail reports them."),
   );
+}
+
+let ledgerGrid = null;
+const LEDGER_LABEL = { pending: "pending", passed: "passed", failed: "failed", released: "released", refunded: "refunded" };
+
+/** The ledger as an AG Grid table: one row per milestone plus a totals row, from Kept's ledger and PayPal's fee breakdown. */
+function mountLedger(job, ledger, pp) {
+  ledgerGrid?.destroy();
+  ledgerGrid = null;
+  const host = document.getElementById("ledger-grid");
+  const ag = globalThis.agGrid;
+  if (!host || !ledger) return;
+  const cur = ledger.currency;
+  const captures = new Map((pp?.captures ?? []).map((c) => [c.id, c]));
+  const rows = ledger.milestones.map((m) => {
+    const id = m.paypal.release_id ?? m.paypal.refund_id ?? m.paypal.capture_id ?? null;
+    const cap = id ? captures.get(id) : undefined;
+    const released = m.status === "released";
+    const refunded = m.status === "refunded";
+    return {
+      milestone: `${m.m + 1}. ${m.title}`,
+      status: m.status,
+      gross: m.amount_cents,
+      fee: released ? cap?.fee_cents ?? null : null,
+      net: released ? cap?.net_cents ?? null : null,
+      back: refunded ? m.amount_cents : 0,
+      paypal: id ?? "—",
+    };
+  });
+  const sum = (k) => rows.reduce((t, r) => (r[k] == null ? t : t + r[k]), 0);
+  const anyFee = rows.some((r) => r.status === "released" && r.fee != null);
+  const totals = { milestone: "Total", status: "", gross: sum("gross"), fee: anyFee ? sum("fee") : null, net: anyFee ? sum("net") : null, back: sum("back"), paypal: "" };
+  if (!ag?.createGrid) {
+    host.replaceChildren(el("p", { class: "muted" }, "The ledger table could not load."));
+    return;
+  }
+  const fmt = (p) => (p.value == null ? "—" : money(p.value, cur));
+  const nonce = document.querySelector('meta[name="csp-nonce"]')?.content;
+  ag.ModuleRegistry.registerModules([ag.AllCommunityModule]);
+  ledgerGrid = ag.createGrid(host, {
+    styleNonce: nonce,
+    theme: ag.themeQuartz.withParams({
+      accentColor: "#0e6f6a", foregroundColor: "#0f1b2d", borderColor: "#e2e7ee", headerBackgroundColor: "#f4f6f9",
+      headerTextColor: "#5b6b7f", fontFamily: "inherit", fontSize: 14, rowHeight: 44, headerHeight: 40, wrapperBorderRadius: 12,
+      oddRowBackgroundColor: "#fbfcfd",
+    }),
+    domLayout: "autoHeight",
+    suppressCellFocus: true,
+    rowData: rows,
+    pinnedBottomRowData: [totals],
+    defaultColDef: { sortable: true, resizable: true, suppressMovable: true },
+    columnDefs: [
+      { field: "milestone", headerName: "Milestone", flex: 2, minWidth: 200 },
+      { field: "status", headerName: "Status", width: 120, cellRenderer: (p) => (p.value ? badge(p.value, LEDGER_LABEL[p.value] ?? p.value) : "") },
+      { field: "gross", headerName: "Gross", width: 110, type: "rightAligned", valueFormatter: fmt },
+      { field: "fee", headerName: "PayPal fee", width: 120, type: "rightAligned", valueFormatter: fmt },
+      { field: "net", headerName: "Worker net", width: 120, type: "rightAligned", valueFormatter: fmt, cellClass: ["ag-right-aligned-cell", "num-pass"] },
+      { field: "back", headerName: "Back to client", width: 135, type: "rightAligned", valueFormatter: (p) => (p.value ? money(p.value, cur) : "—"), cellClass: ["ag-right-aligned-cell", "num-fail"] },
+      { field: "paypal", headerName: "PayPal ID", flex: 1, minWidth: 190, cellClass: "mono-cell", tooltipField: "paypal" },
+    ],
+    getRowClass: (p) => (p.node.rowPinned ? "ledger-total" : undefined),
+  });
 }
 
 /** T6.1: when PayPal moves the held money on its own, whatever Kept does. */
@@ -532,8 +644,8 @@ function holdNote(hold) {
   return el("p", { class: "hold" }, el("b", {}, `Hold limit: ${left}`), ` (${new Date(hold.expires_at).toLocaleString()}). `, hold.rule);
 }
 
-function stat(label, value) {
-  return el("div", { class: "stat" }, el("span", { class: "muted" }, label), el("b", {}, value));
+function stat(label, value, tone) {
+  return el("div", { class: `stat${tone ? ` stat-${tone}` : ""}` }, el("span", { class: "muted" }, label), el("b", {}, value));
 }
 
 function proofPanel(job) {
@@ -633,4 +745,4 @@ function timelinePanel(events) {
   renderBanner();
   await loadMe();
   await route();
-})().catch((e) => app.replaceChildren(el("p", { class: "form-error" }, `Could not load: ${e.message}`)));
+})().catch((e) => put(el("p", { class: "form-error" }, `Could not load: ${e.message}`)));
