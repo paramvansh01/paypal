@@ -16,12 +16,12 @@ Next action:        T1.3 (full remaining plan: docs/NEXT_STEPS.md) — auth_capt
 Suggested order:    H2–H3 → T1.1/T1.2/T1.6 (spike:rail) → T2.3 proof → T4.5 → H7 + T7.2 deploy → H4 → T3.2/T3.6 live → T4.2 real client → H8 → T8.3 → H10/H11.
 Active session:     Aryan — 2026-11-12T17:20+05:30
 Last updated:       2026-11-11 (Aashman: T4.1–T4.4, T5.1–T5.4, T3.1, TQ.5, TQ.11, TQ.12, T6.x, T7.4, T8.1/T8.2/T8.4/T8.5 done; rails, LLM, Render, submission drafted)
-Payment rail:       UNDECIDED (decided by the spike in P1)
+Payment rail:       auth_capture (proven in sandbox 2026-11-12; delayed_disbursement not tried, see T1.6 time box)
 Blockers:           H2–H3 (PayPal sandbox app + accounts) block every real-money proof: T1.x, T2.3/T2.4 proof, T4.5 real rail, TQ.9 binding. H4 (Anthropic + KERNEL keys) blocks live T3.2/T3.6. H7 (Render) blocks T7.2. Claude Code login on Aashman's Mac expired, which blocks the T4.2 real-client check. H8 blocks T8.3 final.
 Hosted demo URL:    —
 Repo URL:           https://github.com/paramvansh01/paypal (public, branch main)
-Submission deadline: — (FILL IN: date, time, timezone)
-Team:               Aashman, Param + (FILL IN teammates)
+Submission deadline: 2026-11-12 12:00 PST (2026-11-13 01:30 IST), Devpost: paypalaihackathon.devpost.com
+Team:               Aashman, Param, Aryan
 ```
 
 Rules for this block:
@@ -164,8 +164,9 @@ Sponsor prize requirements (FILL IN from the official rules, section 8):
 - Render: —
 - Postman: —
 
-Judging criteria (FILL IN from the official rules, so every decision can be weighed against them):
-- —
+Judging criteria (from the Devpost page, no weights given):
+- Technological Implementation, Design, Potential Impact, Innovation/Idea, Presentation.
+- Prizes: grand 1st $12k / 2nd $8k / 3rd $5k; $5k each for Most Creative, Most Impactful, Best Demo Delivery, Best Use of PayPal + AI, Best Use of Agentic Commerce; AG Grid 1st $5k / 2nd $2k / 3rd 3 × $1k; Render credits. KERNEL and Postman list no prize.
 
 ---
 
@@ -549,10 +550,10 @@ The pure parts (TQ.1–TQ.3) need no keys or network and come first. Every task 
 
 - [x] **T5.1** Job list and job detail: status, milestones, checklist with live verdicts turning green or red as the verifier runs (polling or server-sent events).
 - [x] **T5.2** Evidence viewer: per item, the screenshot, measured value and replay link.
-- [~] **T5.3** (Aashman — held/released/refunded, PayPal IDs and gross per milestone are on the job page; fee and net wait for the PayPal rail, T2.3) Money panel: held, released, refunded, with PayPal IDs and gross/fee/net.
+- [x] **T5.3** (Aryan — fee and net per capture read from PayPal's seller_receivable_breakdown via GET /jobs/:id/paypal, shown in the AG Grid ledger) Money panel: held, released, refunded, with PayPal IDs and gross/fee/net.
 - [x] **T5.4** Human flow: create a job from a brief, review and accept the checklist, approve payment, approve `client_approval` items.
-- [ ] **T5.5** (SHOULD) Visual polish for the video: clear typography, a calm colour scheme, readable at 1080p. No PayPal logos or other third-party marks in our own UI.
-- [ ] **T5.6** (COULD) Ledger table with AG Grid. Only build this if the team decides to enter the AG Grid prize (see Decision Log).
+- [x] **T5.5** (SHOULD) Visual polish for the video: clear typography, a calm colour scheme, readable at 1080p. No PayPal logos or other third-party marks in our own UI.
+- [x] **T5.6** (COULD) Ledger table with AG Grid. Only build this if the team decides to enter the AG Grid prize (see Decision Log).
 
 ### P6 — Trust and fairness features (SHOULD)
 
@@ -668,6 +669,9 @@ Format: `YYYY-MM-DD — <name> — decision — reason`
 - 2026-11-11 — Aashman — T6: a dispute (either party, VERIFIED only) pauses settlement and can be withdrawn only by its opener; there is no in-app arbitration, so an unresolved dispute ends with PayPal's own hold limit (delayed: auto-disburse at 28 days; auth_capture: authorization expires at 29 days and the hold returns to the client). Resubmission: once, only after a failed milestone, re-verifies the whole contract in a new round (the deliverable changed), and lapses earlier client decisions (deleted from client_decisions, kept in the WORK_RESUBMITTED event). `jobView.hold` gives the deadline from the FUNDED event.
 
 - 2026-11-12 — Aryan — Sandbox uses US accounts (US personal buyer, US business seller under a Platform app) — Indian sandbox accounts were refused at approval ("seller doesn't accept payments in your currency").
+
+- 2026-11-12 — Aryan — AG Grid Community (MIT) for the money ledger, loaded from node_modules (`/assets/vendor/ag-grid-community.min.js` serves the `noStyle` bundle: the full bundle injects legacy CSS at load, which the CSP blocks). App pages now get a per-request CSP nonce for styles only (`style-src 'self' 'nonce-…'`, `<meta name="csp-nonce">`, gridOptions.styleNonce); scripts stay 'self'. The report page keeps its static CSP.
+- 2026-11-12 — Aryan — Own visual identity (navy header, teal accent, light theme only), not PayPal's look: the rules forbid third-party trademarks without permission, and a clone reads as a mockup. "Settled on PayPal" is said in text only.
 
 ---
 
