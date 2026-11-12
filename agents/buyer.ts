@@ -78,8 +78,19 @@ export async function runBuyer(agent: KeptAgent, opts: BuyerOptions): Promise<Bu
 
   const lock = await agent.call("lock_funds", { job_id: jobId });
   log(`PayPal order ${lock.paypal_order_id} created.`);
-  await opts.onApproval(lock.approve_url as string);
-  const funded = await agent.call("confirm_funds", { job_id: jobId });
+  // PayPal answers ORDER_NOT_APPROVED if confirm runs before the person finished approving.
+  // That changes nothing on either side, so wait for the approval again instead of failing.
+  let funded: ToolData | undefined;
+  for (let attempt = 1; !funded; attempt++) {
+    await opts.onApproval(lock.approve_url as string);
+    try {
+      funded = await agent.call("confirm_funds", { job_id: jobId });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (attempt >= 5 || !/ORDER_NOT_APPROVED|PAYER_ACTION_REQUIRED/.test(msg)) throw err;
+      log("PayPal says the payment is not approved yet. Approve it in PayPal, then come back.");
+    }
+  }
   log(`Funds locked (capture ${(funded.capture_ids as string[]).join(", ")}). Waiting for the delivery…`);
 
   const delivered = await waitFor(agent, jobId, ["DELIVERED"], { ...wait, what: "the delivery" });

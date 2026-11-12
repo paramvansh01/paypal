@@ -216,7 +216,7 @@ export function createApp(config: Config, deps: AppDeps = {}): Express {
   if (deps.db) app.use(paypalRouter(config, { db: deps.db, rail: deps.rail, paypal: deps.paypal }));
 
   // Demo helpers and judge mode (src/server/demo.ts).
-  if (deps.db) app.use(demoRouter(config, deps.db));
+  if (deps.db) app.use(demoRouter(config, deps.db, deps.rail));
 
   // The job lifecycle API (T2.6).
   if (deps.db && deps.keyring) {

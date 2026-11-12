@@ -174,6 +174,7 @@ function route() {
   return listView();
 }
 function go(path) {
+  listView.scrolled = false;
   history.pushState(null, "", path);
   route();
 }
@@ -284,7 +285,7 @@ async function listView() {
           el("td", { class: "muted" }, when(j.created_at)),
         )))))
     : el("p", { class: "muted" }, mine ? "You have no jobs yet. Post one, or run a demo job below." : "No jobs yet. Run a demo job to see one settle.");
-  const heroSlip = await featuredSlip(mine ? [] : jobs).catch(() => slip(EXAMPLE_JOB, null, { example: true }));
+  const heroSlip = await featuredSlip(jobs).catch(() => slip(EXAMPLE_JOB, null, { example: true }));
   put(
     el("section", { class: "hero" },
       el("div", { class: "hero-copy" },
@@ -292,7 +293,6 @@ async function listView() {
         el("p", { class: "lede" }, "Kept turns a job into a contract a machine can check. PayPal holds the payment. Three independent verifiers inspect the delivery in different browsers and sign what they saw. Each milestone is paid only when two of them agree it passed, and refunded when they agree it failed."),
         el("div", { class: "row" },
           state.me ? el("a", { class: "btn primary", href: "/app/new", "data-nav": true }, "Post a job") : el("button", { class: "primary", onclick: () => showSignIn() }, "Sign in to post a job"),
-          state.me ? el("a", { class: "btn", href: mine ? "/" : "/?mine", "data-nav": true }, mine ? "All jobs" : "My jobs") : null,
           el("a", { class: "btn quiet", href: "#demo" }, "Watch one settle"),
         ),
       ),
@@ -313,12 +313,22 @@ async function listView() {
     ),
     state.health?.demo_mode ? demoRunBox() : null,
     checkedSection(),
-    el("section", { class: "section jobs-section" },
-      sectionHead(mine ? "My jobs" : "Recent jobs", mine ? "Jobs where you are the client or the worker." : "Every job on this server, newest first. Open one to see its votes, money and receipt."),
+    el("section", { class: "section jobs-section", id: "jobs" },
+      el("div", { class: "jobs-head" },
+        sectionHead(mine ? "My jobs" : "Recent jobs", mine ? "Jobs where you are the client or the worker." : "Every job on this server, newest first. Open one to see its votes, money and receipt."),
+        state.me ? el("div", { class: "seg", role: "group", "aria-label": "Which jobs" },
+          el("a", { href: "/#jobs", "data-nav": true, "aria-current": mine ? null : "true" }, "All jobs"),
+          el("a", { href: "/?mine#jobs", "data-nav": true, "aria-current": mine ? "true" : null }, "My jobs"),
+        ) : null,
+      ),
       table,
     ),
     siteFooter(),
   );
+  if (location.hash === "#jobs" && !listView.scrolled) {
+    listView.scrolled = true;
+    document.getElementById("jobs")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
   timer = setTimeout(() => location.pathname === "/" && !document.querySelector(".demo button:disabled") && listView().catch(() => {}), 6000);
 }
 
@@ -504,7 +514,7 @@ async function detailView(id, opts = {}) {
         stepper(job.status),
         injectionAlert(ev.events),
         run && run.stage !== "done" ? demoRunPanel(id, run) : null,
-        role ? actionPanel(job, role) : null,
+        role && !(run && (run.stage === "running" || run.stage === "awaiting_approval")) ? actionPanel(job, role) : null,
       ),
       el("div", { class: "job-slip" }, slip(job, ev.events, { ledger })),
     ),
@@ -562,22 +572,40 @@ function stepper(status) {
 }
 
 function demoRunPanel(id, run) {
-  const kids = [el("h2", {}, `Demo run: ${run.site} delivery`)];
+  const kids = [el("h2", {}, run.stage === "done" ? `Demo run: ${run.site} delivery` : `Demo run in progress: ${run.site} delivery`)];
   if (run.stage === "awaiting_approval" && safeHref(run.approve_url)) {
     kids.push(
-      el("p", {}, "The buyer agent is waiting for a person to approve the payment in PayPal, once. Log in with the sandbox buyer account, approve, then come back."),
+      el("ol", { class: "approve-steps" },
+        el("li", {}, "Open PayPal and log in with the sandbox ", el("b", {}, "buyer"), " account."),
+        el("li", {}, "Approve the $100.00 payment. PayPal holds it; nothing is charged yet."),
+        el("li", {}, "Come back to this tab. Kept notices the approval and carries on by itself."),
+      ),
       el("div", { class: "row" },
         el("a", { class: "btn primary", href: safeHref(run.approve_url), target: "_blank", rel: "noopener noreferrer" }, "Approve in PayPal"),
-        el("button", { onclick: async () => { await api("POST", `/demo/runs/${id}/approved`); detailView(id); } }, "I approved it"),
+        el("button", { class: "small", onclick: async () => { await api("POST", `/demo/runs/${id}/approved`).catch(() => {}); detailView(id); } }, "I approved it"),
       ),
     );
   } else if (run.stage === "error") {
-    kids.push(el("p", { class: "form-error" }, `The run stopped: ${run.error}`));
-  } else {
-    kids.push(el("p", { class: "muted" }, run.stage === "done" ? "Finished." : "The agents are working…"));
+    kids.push(el("div", { class: "run-error" },
+      el("b", {}, "The demo run stopped."),
+      el("p", {}, friendlyError(run.error)),
+      /NOT_APPROVED|PAYER_ACTION/.test(run.error ?? "") && safeHref(run.approve_url)
+        ? el("div", { class: "row" }, el("a", { class: "btn primary", href: safeHref(run.approve_url), target: "_blank", rel: "noopener noreferrer" }, "Approve in PayPal"))
+        : null,
+      el("details", {}, el("summary", {}, "Technical details"), el("code", {}, run.error)),
+    ));
+  } else if (run.stage !== "done") {
+    kids.push(el("p", { class: "muted" }, "The agents are working. Each step appears below as it happens."));
   }
-  kids.push(el("pre", { class: "log" }, run.log.slice(-40).join("\n")));
-  return el("section", { class: "panel action gap-top" }, kids);
+  const log = el("pre", { class: "log" }, run.log.slice(-40).join("\n"));
+  kids.push(run.stage === "done" ? el("details", { class: "log-wrap" }, el("summary", {}, "Agent log"), log) : log);
+  return el("section", { class: `panel action gap-top run-${run.stage}` }, kids);
+}
+
+function friendlyError(msg = "") {
+  if (/ORDER_NOT_APPROVED|PAYER_ACTION_REQUIRED/.test(msg)) return "PayPal had not received the approval yet. Approve the order in PayPal, then use \"Confirm funds\" in the next step below.";
+  if (/PayPal/.test(msg)) return "PayPal refused a request. The details below include PayPal's debug ID.";
+  return "Something went wrong while the agents were working. The details are below.";
 }
 
 /** Buttons for the next step, for whoever is signed in. */

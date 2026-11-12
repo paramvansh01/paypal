@@ -209,3 +209,19 @@ table.narrow { min-width: 24rem; }
   .stepper li { font-size: 0; }
 }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+
+/* demo run panel */
+.approve-steps { margin: 0 0 1rem; padding-left: 1.3rem; display: grid; gap: 0.3rem; }
+.run-error { border-left: 3px solid var(--fail); background: var(--fail-bg); padding: 0.75rem 1rem; border-radius: 3px; margin-bottom: 0.75rem; }
+.run-error p { margin: 0.25rem 0 0.5rem; }
+.run-error code { display: block; white-space: pre-wrap; margin-top: 0.4rem; font-size: 0.78rem; }
+.log-wrap summary { cursor: pointer; color: var(--accent); font-weight: 600; }
+.job-main h1 { font-size: clamp(1.8rem, 3vw, 2.4rem); }
+
+.job-slip { position: sticky; top: 1.25rem; }
+.jobs-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-end; gap: 1rem; }
+.seg { display: inline-flex; border: 2px solid var(--ink); border-radius: 3px; box-shadow: 3px 3px 0 var(--ink); margin-bottom: 1.75rem; }
+.seg a { padding: 0.45rem 0.9rem; text-decoration: none; color: var(--ink); font-weight: 600; }
+.seg a + a { border-left: 2px solid var(--ink); }
+.seg a[aria-current="true"] { background: var(--ink); color: var(--bg); }
+@media (max-width: 900px) { .job-slip { position: static; } }

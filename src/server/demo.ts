@@ -9,6 +9,8 @@ import { DEMO_CLIENT_ID, DEMO_WORKER_ID } from "../db/seed.js";
 import { getParty } from "../core/jobs.js";
 import type { Db } from "../db/client.js";
 import { partyToken } from "./auth.js";
+import { buildRailJob } from "../core/settlement.js";
+import type { PaymentRail } from "../rails/types.js";
 
 /**
  * Demo helpers for the web UI.
@@ -27,13 +29,14 @@ const CONTRACT = JSON.parse(readFileSync(new URL("../../demo/contract.json", imp
 interface DemoRun {
   site: string;
   stage: "running" | "awaiting_approval" | "done" | "error";
+  jobId?: string;
   approveUrl?: string;
   approved?: () => void;
   log: string[];
   error?: string;
 }
 
-export function demoRouter(config: Config, db: Db): Router {
+export function demoRouter(config: Config, db: Db, rail?: PaymentRail): Router {
   const r = express.Router();
   const runs = new Map<string, DemoRun>();
 
@@ -88,6 +91,7 @@ export function demoRouter(config: Config, db: Db): Router {
         pollMs: 500,
         log: say("buyer"),
         onPosted: (jobId) => {
+          run.jobId = jobId;
           respond?.(jobId);
           respond = undefined;
         },
@@ -96,10 +100,22 @@ export function demoRouter(config: Config, db: Db): Router {
           run.stage = "awaiting_approval";
           run.approveUrl = url;
           return new Promise<void>((resolve) => {
+            let timer: ReturnType<typeof setInterval> | undefined;
             run.approved = () => {
+              if (timer) clearInterval(timer);
+              run.approved = undefined;
               run.stage = "running";
               resolve();
             };
+            // Notice the approval on our own: PayPal marks the order APPROVED once the buyer approves it.
+            if (rail && run.jobId) {
+              const jobId = run.jobId;
+              timer = setInterval(() => {
+                rail.status(buildRailJob(db, jobId))
+                  .then((s) => { if (s.orderStatus === "APPROVED") run.approved?.(); })
+                  .catch(() => { /* keep waiting; the button still works */ });
+              }, 3000);
+            }
           });
         },
       })
@@ -128,7 +144,7 @@ export function demoRouter(config: Config, db: Db): Router {
       res.json({ stage: null }); // most jobs are not demo runs; not an error
       return;
     }
-    res.json({ site: run.site, stage: run.stage, approve_url: run.stage === "awaiting_approval" ? run.approveUrl : null, error: run.error ?? null, log: run.log });
+    res.json({ site: run.site, stage: run.stage, approve_url: run.approveUrl ?? null, error: run.error ?? null, log: run.log });
   });
 
   r.post("/demo/runs/:jobId/approved", enabled, (req, res) => {
