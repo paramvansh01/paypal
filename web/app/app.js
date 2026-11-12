@@ -298,8 +298,8 @@ async function listView() {
       ),
       el("div", { class: "hero-slip" }, heroSlip),
     ),
-    el("section", { class: "steps-wrap" },
-      el("h2", {}, "How a payment settles"),
+    el("section", { class: "steps-wrap section" },
+      sectionHead("How a payment settles", "Four steps, and money moves only at the last one."),
       el("ol", { class: "steps" },
         howStep("Agree", "The brief becomes a contract of checkable items. Its SHA-256 fingerprint is written onto the PayPal order.",
           el("code", { class: "art-hash" }, "custom_id 0b71cb82d831…")),
@@ -313,11 +313,17 @@ async function listView() {
     ),
     state.health?.demo_mode ? demoRunBox() : null,
     checkedSection(),
-    el("h2", {}, mine ? "My jobs" : "Recent jobs"),
-    table,
+    el("section", { class: "section jobs-section" },
+      sectionHead(mine ? "My jobs" : "Recent jobs", mine ? "Jobs where you are the client or the worker." : "Every job on this server, newest first. Open one to see its votes, money and receipt."),
+      table,
+    ),
     siteFooter(),
   );
   timer = setTimeout(() => location.pathname === "/" && !document.querySelector(".demo button:disabled") && listView().catch(() => {}), 6000);
+}
+
+function sectionHead(title, intro) {
+  return el("div", { class: "section-head" }, el("h2", {}, title), intro ? el("p", {}, intro) : null);
 }
 
 function howStep(title, text, art) {
@@ -327,8 +333,8 @@ function howStep(title, text, art) {
 /** For the two audiences who need to trust a settlement: agents that pay, and people who check. */
 function checkedSection() {
   const tools = ["post_job", "accept_checklist", "lock_funds", "submit_work", "verify", "settle", "get_receipt"];
-  return el("section", { class: "checked" },
-    el("h2", {}, "Built to be checked"),
+  return el("section", { class: "checked section band band-ink" },
+    sectionHead("Built to be checked", "Agents use it through an open protocol. People can check every payout without trusting Kept."),
     el("div", { class: "checked-cols" },
       el("div", {},
         el("h3", {}, "Agents pay through MCP"),
@@ -382,9 +388,8 @@ function demoRunBox() {
       ),
       b);
   };
-  return el("section", { class: "demo", id: "demo" },
-    el("h2", {}, "Run a demo job"),
-    el("p", { class: "muted measure" }, "A buyer agent and a worker agent do the whole job over Kept's MCP server: post a $100 bakery website job in four milestones, pay, deliver, verify, settle. Pick what the worker delivers."),
+  return el("section", { class: "demo section band band-paper", id: "demo" },
+    sectionHead("Run a demo job", "A buyer agent and a worker agent do the whole job over Kept's MCP server: post a $100 bakery website job in four milestones, pay, deliver, verify, settle. Pick what the worker delivers."),
     el("ol", { class: "demo-rows" },
       row("good", "Good delivery", "Everything in the contract works.", ["P", "P", "P", "P"]),
       row("flawed", "Flawed delivery", "The contact form does not submit.", ["P", "P", "R", "P"]),
