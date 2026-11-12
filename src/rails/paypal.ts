@@ -1,5 +1,5 @@
 import type { PayPalClient } from "../paypal/client.js";
-import type { LockResult, MoneyContext, MoneyResult, PaymentRail, RailJob, RailMilestone, RailStatus } from "./types.js";
+import type { LockResult, MoneyContext, MoneyResult, PaymentRail, RailJob, RailCapture, RailMilestone, RailStatus } from "./types.js";
 
 /**
  * T2.3 / T2.4: the two PayPal rails (section 6.5), written against PayPal's
@@ -25,6 +25,24 @@ export interface PayPalRailOptions {
 
 export const money = (cents: number, currency: string) => ({ currency_code: currency, value: (cents / 100).toFixed(2) });
 const toCents = (v: { value?: string } | undefined) => (v?.value ? Math.round(Number(v.value) * 100) : 0);
+
+/** Every capture on an order, with PayPal's seller_receivable_breakdown (fee and net) when present. */
+export function capturesOf(order: Json): RailCapture[] {
+  const out: RailCapture[] = [];
+  for (const pu of order.purchase_units ?? []) {
+    for (const c of pu.payments?.captures ?? []) {
+      const b = c.seller_receivable_breakdown;
+      out.push({
+        id: String(c.id),
+        status: String(c.status),
+        grossCents: toCents(b?.gross_amount ?? c.amount),
+        feeCents: b?.paypal_fee ? toCents(b.paypal_fee) : null,
+        netCents: b?.net_amount ? toCents(b.net_amount) : null,
+      });
+    }
+  }
+  return out;
+}
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Json = Record<string, any>;
@@ -167,6 +185,7 @@ export class AuthCaptureRail extends PayPalRailBase {
       heldCents: open ? authorized - captured : 0,
       releasedCents: captured,
       refundedCents: auth?.status === "VOIDED" || auth?.status === "CAPTURED" ? Math.max(0, authorized - captured) : 0,
+      captures: capturesOf(order),
       raw: order,
     };
   }
@@ -267,7 +286,7 @@ export class DelayedDisbursementRail extends PayPalRailBase {
       for (const r of pu.payments?.refunds ?? []) if (r.status === "COMPLETED") refunded += toCents(r.amount);
     }
     // Whether held funds were disbursed is not on the order; settlement records our release IDs.
-    return { orderStatus: String(order.status), heldCents: captured - refunded, releasedCents: 0, refundedCents: refunded, raw: order };
+    return { orderStatus: String(order.status), heldCents: captured - refunded, releasedCents: 0, refundedCents: refunded, captures: capturesOf(order), raw: order };
   }
 }
 

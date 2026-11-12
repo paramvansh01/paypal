@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { PayPalClient } from "../src/paypal/client.js";
-import { approveLink, AuthCaptureRail, DelayedDisbursementRail, money } from "../src/rails/paypal.js";
+import { approveLink, AuthCaptureRail, capturesOf, DelayedDisbursementRail, money } from "../src/rails/paypal.js";
 import type { RailJob } from "../src/rails/types.js";
 
 /**
@@ -220,5 +220,23 @@ describe("delayed_disbursement rail", () => {
   it("refuses to create an order for a worker who is not onboarded", async () => {
     const rail = new DelayedDisbursementRail(fakePayPal().client, opts);
     await expect(rail.lock(job({ workerMerchantId: null }), { requestId: "l" })).rejects.toThrow(/no PayPal merchant ID/);
+  });
+});
+
+describe("capturesOf (PayPal fee breakdown, T5.3)", () => {
+  it("reads gross, PayPal fee and net from a real sandbox order shape", () => {
+    // Shape copied from GET /v2/checkout/orders/70988750H3491002G (sandbox, 2026-11-12).
+    const order = {
+      purchase_units: [{ payments: { captures: [
+        { id: "2V648948448496245", status: "COMPLETED", amount: { currency_code: "USD", value: "1.00" },
+          seller_receivable_breakdown: { gross_amount: { currency_code: "USD", value: "1.00" }, paypal_fee: { currency_code: "USD", value: "0.54" }, net_amount: { currency_code: "USD", value: "0.46" } } },
+        { id: "NOFEE", status: "PENDING", amount: { currency_code: "USD", value: "25.00" } },
+      ] } }],
+    };
+    expect(capturesOf(order)).toEqual([
+      { id: "2V648948448496245", status: "COMPLETED", grossCents: 100, feeCents: 54, netCents: 46 },
+      { id: "NOFEE", status: "PENDING", grossCents: 2500, feeCents: null, netCents: null },
+    ]);
+    expect(capturesOf({})).toEqual([]);
   });
 });

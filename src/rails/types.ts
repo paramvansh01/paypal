@@ -48,7 +48,19 @@ export interface RailStatus {
   heldCents: number;
   releasedCents: number;
   refundedCents: number;
+  /** Every capture PayPal reports on the order, with PayPal's own fee breakdown (T5.3). */
+  captures?: RailCapture[];
   raw?: unknown;
+}
+
+/** One PayPal capture as PayPal reports it: gross, PayPal's fee and the worker's net, in cents. */
+export interface RailCapture {
+  id: string;
+  status: string;
+  grossCents: number;
+  /** Null when PayPal has not reported a fee breakdown (yet). */
+  feeCents: number | null;
+  netCents: number | null;
 }
 
 export interface PaymentRail {

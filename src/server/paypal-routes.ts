@@ -49,7 +49,11 @@ export function paypalRouter(config: Config, deps: { db: Db; rail?: PaymentRail;
       }
       const job = buildRailJob(db, req.params.id);
       const s = await deps.rail.status(job);
-      res.json({ job_id: job.id, rail: deps.rail.name, paypal_order_id: job.paypalOrderId, order_status: s.orderStatus, held_cents: s.heldCents, released_cents: s.releasedCents, refunded_cents: s.refundedCents });
+      res.set("Cache-Control", "no-store").json({
+        job_id: job.id, rail: deps.rail.name, paypal_order_id: job.paypalOrderId, order_status: s.orderStatus,
+        held_cents: s.heldCents, released_cents: s.releasedCents, refunded_cents: s.refundedCents,
+        captures: (s.captures ?? []).map((c) => ({ id: c.id, status: c.status, gross_cents: c.grossCents, fee_cents: c.feeCents, net_cents: c.netCents })),
+      });
     } catch (err) {
       next(err);
     }
