@@ -15,7 +15,7 @@ Kept introduces **Proof-Carrying Payments**: a payment that carries its own acce
 
 Kept ships as an open protocol ([`docs/PROTOCOL.md`](docs/PROTOCOL.md)), a REST API, a web app and an **MCP server**, so any agent can hire, deliver and get paid without custom glue code.
 
-> **Status.** Everything below runs today and is covered by about 630 automated tests, most against real browsers. The one thing not yet proven is the **PayPal sandbox** itself, because our sandbox app is still being set up. Both PayPal rails are written against PayPal's published API schemas and tested against a simulated PayPal. Until the sandbox keys are in place, the demo uses a clearly labelled **OFFLINE stand-in**: no money moves, and every payment ID starts with `OFFLINE-`. Hosted demo: _added after deployment._
+> **Status.** Everything below runs today and is covered by about 630 automated tests, most against real browsers. **The PayPal sandbox money path is proven**: a full agent-to-agent job on the flawed site (2026-11-12, order `6D238007NP567901X`) authorized $100.00, captured three $25.00 milestones (PayPal fee $1.36, worker net $23.64 each) and never charged the failed one; the run is recorded in [`docs/SPIKE_RESULTS.md`](docs/SPIKE_RESULTS.md). Without PayPal keys, judge mode falls back to a clearly labelled **OFFLINE stand-in** (no money moves, every payment ID starts with `OFFLINE-`), so you can try everything with no accounts. Hosted demo: _not deployed; run it locally in five minutes (below)._
 
 ---
 

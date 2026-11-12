@@ -48,7 +48,7 @@ PayPal is the engine, not a checkout button. Two rails sit behind one interface:
 
 Idempotency keys make retries safe, and webhooks are signature-verified with PayPal. PayPal's 28-day auto-disbursement means a silent client can never block payment.
 
-*Status to state honestly:* [fill in: "the sandbox run is recorded in docs/SPIKE_RESULTS.md" **or** "both rails are built against PayPal's published API schemas and tested against a simulated PayPal; the demo uses a clearly labelled offline stand-in until the sandbox is connected"].
+*Status:* proven in the PayPal sandbox. An agent-to-agent job on the flawed site authorized $100.00 (order `6D238007NP567901X`), captured the three passed $25.00 milestones (captures `4NV62187M3044570V`, `1DH5688694905824Y`, `9MT19533AS346552A`; PayPal fee $1.36 and worker net $23.64 each, read back from PayPal and shown in the ledger) and voided the rest, so the failed milestone was never charged. See `docs/SPIKE_RESULTS.md`.
 
 ## How AI is used
 
@@ -69,10 +69,10 @@ Idempotency keys make retries safe, and webhooks are signature-verified with Pay
 ## Links
 
 - Repo: https://github.com/paramvansh01/paypal (MIT)
-- Hosted demo: [fill in]
+- Hosted demo: not deployed; the README runs it locally in five minutes, with or without PayPal keys
 - Video: [fill in]
 - Protocol spec: `docs/PROTOCOL.md` · Prior art: `docs/PRIOR_ART.md` · Postman: `postman/`
 
 ## Team
 
-[fill in: Aashman, Param + teammates]
+Aashman, Param, Aryan

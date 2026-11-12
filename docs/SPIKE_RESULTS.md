@@ -21,3 +21,9 @@ Still to verify in the sandbox:
 - NOW CHECK BY HAND: buyer and worker sandbox balances (expected: worker +$3.00 gross minus fees, buyer charged $3.00 net).
 - Read back independently from PayPal (`GET /v2/payments/...`): authorization 15V04978B9632670D is VOIDED (original $4.00); captures 2V648948448496245, 1TD502029F446393A, 1L656607B3721045F are each COMPLETED for $1.00, PayPal fee $0.54, net $0.46 to the seller. So partial captures with `final_capture: false` and voiding the remainder both work in sandbox. `note_to_payer` is not echoed back on GET capture.
 - Accounts: US personal buyer, US business seller (a Platform app). Indian (IN) sandbox accounts failed at approval with "This seller doesn't accept payments in your currency", so use US accounts.
+
+## 2026-11-12 — full agent-to-agent job on the real sandbox (T4.5, auth_capture)
+
+- Judge-mode demo run, flawed site, through the web app: the buyer and worker agents over MCP, PayPal approval by a person with the US sandbox buyer, then automatic continuation once PayPal reported the order APPROVED.
+- Order `6D238007NP567901X` (custom_id = contract hash `0b71cb82d831bf28…`). Quorum certificate `e15974a0de35…`: milestones passed, passed, failed, passed.
+- Captures read back from `GET /v2/checkout/orders/6D238007NP567901X`: `4NV62187M3044570V`, `1DH5688694905824Y`, `9MT19533AS346552A`, each COMPLETED $25.00, PayPal fee $1.36, net $23.64. Order COMPLETED; held $0, released $75.00, $25.00 never captured (authorization voided).

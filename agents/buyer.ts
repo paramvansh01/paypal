@@ -91,7 +91,8 @@ export async function runBuyer(agent: KeptAgent, opts: BuyerOptions): Promise<Bu
       log("PayPal says the payment is not approved yet. Approve it in PayPal, then come back.");
     }
   }
-  log(`Funds locked (capture ${(funded.capture_ids as string[]).join(", ")}). Waiting for the delivery…`);
+  const held = (funded.capture_ids as string[]).length ? `capture ${(funded.capture_ids as string[]).join(", ")}` : `PayPal authorization ${funded.authorization_id}`;
+  log(`Funds held by PayPal (${held}). Waiting for the delivery…`);
 
   const delivered = await waitFor(agent, jobId, ["DELIVERED"], { ...wait, what: "the delivery" });
   log(`Delivered: ${delivered.deliverable_url}. Running the verifier quorum (3 verifiers, 2 must agree)…`);

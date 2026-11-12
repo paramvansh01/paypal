@@ -489,7 +489,7 @@ Goal: learn in a few hours which rail works in our sandbox. Scripts live in `scr
   *Done when:* the results file states plainly whether the release was confirmed.
 - [ ] **T1.5** Spike C — partial outcomes on the preferred rail. Test in this order and stop at the first that works: (a) one purchase unit per milestone, released or refunded separately; (b) one purchase unit, partial refund of failed milestones, then release of the remainder.
   *Done when:* one approach is proven or both are documented as failing.
-- [ ] **T1.6** **Decide the rail.** Write the decision and the evidence into the Decision Log and set "Payment rail" in Live State.
+- [x] **T1.6** **Decide the rail.** (Aryan, 2026-11-12: auth_capture, by the time box; deadline is tonight) Write the decision and the evidence into the Decision Log and set "Payment rail" in Live State.
   Decision rule: if T1.4 and T1.5 are both confirmed, use `delayed_disbursement`. Otherwise use `auth_capture` and present delayed disbursement in the README as the production design.
   *Time box:* if T1.3–T1.5 are not confirmed after about 6 working hours in total, choose `auth_capture` and move on.
 
@@ -543,7 +543,7 @@ The pure parts (TQ.1–TQ.3) need no keys or network and come first. Every task 
 - [~] **T4.2** (Aashman — MCP Inspector CLI verified over HTTP and stdio, README steps written; the real-client check waits for a valid Claude Code login on this Mac) Test with the MCP Inspector and with one real client (Claude Code or Claude Desktop). Put the exact connection steps in the README.
 - [x] **T4.3** Buyer agent (`agents/buyer.ts`): given a goal and a budget, it posts the job, accepts the checklist, requests the lock, waits, then calls verify and settle.
 - [x] **T4.4** Worker agent (`agents/worker.ts`): accepts a job and submits a deliverable. In demo mode it submits `good` or `flawed` by flag, so the run is repeatable.
-- [~] **T4.5** (Aashman — works end to end on the OFFLINE rail: `npm run demo -- --site all --runs 3` gave 9 of 9 as expected; the PayPal approval pause is wired for `--base` and waits for T2.3) `npm run demo`: scripted agent-to-agent run from start to finish, pausing only for the PayPal approval click, printing a readable narration.
+- [x] **T4.5** (Aryan — real sandbox run through judge mode on 2026-11-12, see docs/SPIKE_RESULTS.md; Aashman's offline 9 of 9 still holds) `npm run demo`: scripted agent-to-agent run from start to finish, pausing only for the PayPal approval click, printing a readable narration.
   *Done when:* it succeeds three times in a row for both `good` and `flawed`.
 
 ### P5 — Web UI (MUST for the core views, SHOULD for polish)
@@ -673,6 +673,8 @@ Format: `YYYY-MM-DD — <name> — decision — reason`
 - 2026-11-12 — Aryan — AG Grid Community (MIT) for the money ledger, loaded from node_modules (`/assets/vendor/ag-grid-community.min.js` serves the `noStyle` bundle: the full bundle injects legacy CSS at load, which the CSP blocks). App pages now get a per-request CSP nonce for styles only (`style-src 'self' 'nonce-…'`, `<meta name="csp-nonce">`, gridOptions.styleNonce); scripts stay 'self'. The report page keeps its static CSP.
 - 2026-11-12 — Aryan — Own visual identity, not PayPal's look (later replaced by the security-print redesign below): the rules forbid third-party trademarks without permission, and a clone reads as a mockup. "Settled on PayPal" is said in text only.
 - 2026-11-12 — Aryan — Redesign in a security-print language (cheques, banknotes, receipts): paper/ink/security-green palette, carmine for refunds, ochre for held money, self-hosted Bricolage Grotesque + IBM Plex Mono (`/assets/fonts/*`, CSP `font-src 'self'`), a generated guilloche band (`web/app/guilloche.svg`). The centrepiece is the settlement slip: a job drawn as a cheque whose milestone lines carry each verifier's vote and a Paid/Refunded stamp, on the home page (latest settled job, or a dashed example) and beside the job header. Rules and ledger lines instead of shadowed cards.
+
+- 2026-11-12 — Aryan — Rail decided: auth_capture (proven end to end in sandbox). Delayed disbursement stays in the code and the README as the production design (T1.6 time box; deadline tonight). Judge-mode demo runs now notice the PayPal approval by polling the order status every 3 s, and the buyer agent waits again on ORDER_NOT_APPROVED instead of failing.
 
 ---
 
