@@ -1,65 +1,54 @@
 :root {
-  --bg: #f7f7f4;
+  /* Kept palette: deep ink, calm teal accent, money states (held amber, released green, refunded rose). */
+  --bg: #f4f6f9;
   --panel: #ffffff;
-  --ink: #1d2327;
-  --muted: #5f6b73;
-  --line: #e2e4e0;
-  --pass: #1f7a4d;
-  --pass-bg: #e3f3ea;
-  --fail: #b3261e;
-  --fail-bg: #fbe7e5;
-  --wait: #8a5a00;
-  --wait-bg: #fdf1d8;
-  --err: #4b5563;
-  --err-bg: #eceef0;
-  --accent: #23527c;
+  --ink: #0f1b2d;
+  --muted: #5b6b7f;
+  --line: #e2e7ee;
+  --pass: #0b7a52;
+  --pass-bg: #e3f4ec;
+  --fail: #b4232c;
+  --fail-bg: #fcebec;
+  --wait: #8f5d00;
+  --wait-bg: #fff3d6;
+  --err: #475569;
+  --err-bg: #edf0f4;
+  --accent: #0e6f6a;
+  --accent-soft: #e2f2f0;
+  --navy: #0b1d33;
+  --shadow: 0 1px 2px rgba(15, 27, 45, 0.05), 0 4px 16px rgba(15, 27, 45, 0.05);
   --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
-  color-scheme: light dark;
-}
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #14171a;
-    --panel: #1c2024;
-    --ink: #e7eaec;
-    --muted: #9aa5ad;
-    --line: #2c3238;
-    --pass: #6fd3a0;
-    --pass-bg: #173326;
-    --fail: #ff8f86;
-    --fail-bg: #3a1c1a;
-    --wait: #f2c46d;
-    --wait-bg: #3a2e14;
-    --err: #b6bec5;
-    --err-bg: #2a2f34;
-    --accent: #8cc1ee;
-  }
+  color-scheme: light;
 }
 * { box-sizing: border-box; }
 body {
   margin: 0;
   background: var(--bg);
   color: var(--ink);
-  font: 16px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+  font: 16px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
 }
 a { color: var(--accent); }
 code, .mono { font-family: var(--mono); font-size: 0.86em; overflow-wrap: anywhere; }
-.top { display: flex; gap: 1rem; align-items: baseline; padding: 0.9rem clamp(1rem, 4vw, 2.5rem); border-bottom: 1px solid var(--line); background: var(--panel); }
-.brand { font-weight: 700; font-size: 1.15rem; text-decoration: none; color: var(--ink); }
+.top { display: flex; gap: 1rem; align-items: center; padding: 0.85rem clamp(1rem, 4vw, 2.5rem); background: var(--navy); color: #dbe4ee; }
+.top .tag { color: #9fb0c3; }
+.brand { display: inline-flex; align-items: center; gap: 0.5rem; font-weight: 800; font-size: 1.2rem; letter-spacing: -0.01em; text-decoration: none; color: #fff; }
+.brand::before { content: "✓"; display: inline-grid; place-items: center; width: 1.6rem; height: 1.6rem; border-radius: 7px; background: #14b8a6; color: var(--navy); font-size: 0.95rem; font-weight: 900; }
 .tag, .muted { color: var(--muted); }
 main, .wrap { max-width: 72rem; margin: 0 auto; padding: 1.5rem clamp(1rem, 4vw, 2.5rem) 4rem; }
-h1 { font-size: clamp(1.5rem, 3vw, 2rem); margin: 0 0 0.25rem; }
+h1 { font-size: clamp(1.6rem, 3vw, 2.15rem); letter-spacing: -0.02em; margin: 0 0 0.25rem; }
 h2 { font-size: 1.2rem; margin: 2.25rem 0 0.75rem; }
 h3 { font-size: 1.05rem; margin: 0; }
-section.panel, .card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 1rem 1.25rem; }
+section.panel, .card { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 1.15rem 1.35rem; box-shadow: var(--shadow); }
 .head { display: flex; flex-wrap: wrap; gap: 0.75rem 1.5rem; align-items: flex-start; justify-content: space-between; }
 .facts { display: grid; grid-template-columns: max-content 1fr; gap: 0.35rem 1rem; margin: 0; }
 .facts dt { color: var(--muted); }
 .facts dd { margin: 0; min-width: 0; }
 .actions { display: flex; flex-wrap: wrap; gap: 0.6rem; }
-.btn { display: inline-block; padding: 0.5rem 0.95rem; border-radius: 8px; border: 1px solid var(--accent); color: var(--accent); text-decoration: none; font-weight: 600; }
+.btn { display: inline-block; padding: 0.55rem 1rem; border-radius: 10px; border: 1px solid var(--accent); color: var(--accent); text-decoration: none; font-weight: 600; }
 .btn.primary { background: var(--accent); color: var(--panel); }
 .summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr)); gap: 0.75rem; margin-top: 1rem; }
-.stat { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 0.8rem 1rem; }
+.stat { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 0.85rem 1rem; }
 .stat b { display: block; font-size: 1.45rem; }
 .badge { display: inline-block; padding: 0.1rem 0.55rem; border-radius: 999px; font-size: 0.82rem; font-weight: 600; white-space: nowrap; }
 .v-pass, .v-passed, .v-released { color: var(--pass); background: var(--pass-bg); }

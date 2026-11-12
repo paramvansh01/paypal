@@ -365,10 +365,13 @@ async function detailView(id, opts = {}) {
       el("div", { class: "row" }, badge(job.status.toLowerCase(), STEP_LABEL[job.status] ?? job.status), el("b", {}, money(job.total_cents, job.currency))),
     ),
     stepper(job.status),
-    run ? demoRunPanel(id, run) : null,
-    actionPanel(job, role),
+    injectionAlert(ev.events),
+    run && run.stage !== "done" ? demoRunPanel(id, run) : null,
+    role ? actionPanel(job, role) : null,
     moneyPanel(job, ledger),
     proofPanel(job),
+    run && run.stage === "done" ? demoRunPanel(id, run) : null,
+    role ? null : actionPanel(job, role),
     contractPanel(job, role, liveVotes(ev.events)),
     timelinePanel(ev.events),
   );
@@ -376,6 +379,16 @@ async function detailView(id, opts = {}) {
   if (log) log.scrollTop = log.scrollHeight;
   mountLedger(job, ledger, pp);
   schedule(id, job, run);
+}
+
+/** The worker's delivery tried to talk the AI verifiers into a pass, and the quorum caught it. */
+function injectionAlert(events) {
+  const hits = events.filter((e) => e.type === "INJECTION_DETECTED");
+  if (!hits.length) return null;
+  return el("div", { class: "alert gap-top" },
+    el("b", {}, "Prompt-injection attempt caught"),
+    el("p", {}, "The delivery hid instructions aimed at the AI verifiers. The tripwire flagged it, the item failed, and its money was not paid out."),
+  );
 }
 
 /** Per-item votes of the latest round, as each verifier reports them (VERIFIER_ITEM events). */
