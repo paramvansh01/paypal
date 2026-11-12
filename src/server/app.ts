@@ -183,7 +183,7 @@ export function createApp(config: Config, deps: AppDeps = {}): Express {
   app.get("/assets/vendor/ag-grid-community.min.js", (_req, res) => {
     res.set({ "X-Content-Type-Options": "nosniff", "Cache-Control": "public, max-age=86400" }).type("text/javascript").sendFile("ag-grid-community.min.noStyle.js", { root: AG_GRID_DIST });
   });
-  app.get(["/", "/app/new", "/app/jobs/:id"], (_req, res) => {
+  app.get(["/", "/app/new", "/app/connect", "/app/jobs/:id"], (_req, res) => {
     const appHtml = readFileSync(join(APP_DIR, "index.html"), "utf8");
     const nonce = randomBytes(16).toString("base64");
     res.set({ "Content-Security-Policy": appCsp(nonce), "X-Content-Type-Options": "nosniff", "Referrer-Policy": "no-referrer", "Cache-Control": "no-store" });

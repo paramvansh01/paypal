@@ -73,7 +73,7 @@ Add your keys to `.env`. Every key is explained in [`.env.example`](.env.example
 | Feature | Keys | Without them |
 | --- | --- | --- |
 | Real PayPal sandbox money | `PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET`, `PAYMENT_RAIL`, `DEMO_*` sandbox accounts | OFFLINE stand-in (judge mode) or "PayPal not connected" |
-| AI checks (`llm_judgement`) and AI contract drafts | `ANTHROPIC_API_KEY`, `LLM_MODEL` (default `claude-opus-5-5`) | AI items go to the client; contracts are written by hand |
+| AI checks (`llm_judgement`) and AI contract drafts | `GEMINI_API_KEY` (judges: gemini-3.5-flash, gemini-3.6-flash, gemini-3.5-flash-lite) or `ANTHROPIC_API_KEY` (Claude Opus, Sonnet, Haiku); `JUDGE_MODELS` overrides | AI items go to the client; contracts are written by hand. With a key, the demo contract adds one AI-judged check on the contact page |
 | Cloud browser for verifier A, with replays | `KERNEL_API_KEY`, `VERIFIER_BROWSER=kernel` | Verifier A uses local Chromium and says so in its signed attestation |
 
 ```bash
@@ -144,6 +144,8 @@ Every create, capture, release and refund sends a deterministic `PayPal-Request-
 ---
 
 ## Connect an AI agent (MCP)
+
+The easiest way: open **/app/connect** on a running server (judge mode). It creates a party token and gives copy-paste setup for Claude Code, Claude Desktop and Cursor, plus a prompt to try. The manual steps:
 
 Kept is an MCP server. An agent connects as one **party** (the client who pays, or the worker who delivers) with a party token:
 

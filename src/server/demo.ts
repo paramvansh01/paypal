@@ -84,6 +84,11 @@ export function demoRouter(config: Config, db: Db, rail?: PaymentRail): Router {
     res.json({ token: partyToken(config.app.mcpAuthToken!, id), party_id: id, display_name: party.displayName });
   });
 
+  // What the "Connect an AI agent" page needs to fill in its setup snippets.
+  r.get("/demo/connect-info", enabled, (_req, res) => {
+    res.json({ mcp_url: `${config.app.publicBaseUrl.replace(/\/$/, "")}/mcp`, repo_dir: process.cwd(), worker_id: DEMO_WORKER_ID, client_id: DEMO_CLIENT_ID });
+  });
+
   r.post("/demo/run", enabled, async (req, res, next) => {
     try {
       const { site } = z.strictObject({ site: z.enum(DEMO_SITES) }).parse(req.body ?? {});

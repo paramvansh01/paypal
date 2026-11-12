@@ -225,3 +225,11 @@ table.narrow { min-width: 24rem; }
 .seg a + a { border-left: 2px solid var(--ink); }
 .seg a[aria-current="true"] { background: var(--ink); color: var(--bg); }
 @media (max-width: 900px) { .job-slip { position: static; } }
+
+/* connect an AI agent */
+.connect-steps { padding-left: 1.2rem; display: grid; gap: 1.5rem; max-width: 52rem; }
+.connect-steps > li > b { font-size: 1.1rem; }
+.connect-out h3 { font-size: 1rem; margin: 1.25rem 0 0.4rem; }
+.snippet { position: relative; }
+.snippet .codeblock { white-space: pre-wrap; overflow-wrap: anywhere; padding-right: 5.5rem; margin: 0.4rem 0; }
+.snippet .copy { position: absolute; top: 0.5rem; right: 0.5rem; background: var(--panel); }

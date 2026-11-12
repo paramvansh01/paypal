@@ -177,7 +177,7 @@ Claude must not create accounts or type credentials into websites. At session st
 - [x] **H1** Public GitHub repo: https://github.com/paramvansh01/paypal (created by Param; it is named `paypal`, not `kept`). Still to do: add every teammate as a collaborator so they can push.
 - [x] **H2** Create a PayPal Developer account. In the sandbox dashboard create a REST app of the **Platform / Marketplace** type (needed for multiparty features). Copy the client ID and secret.
 - [x] **H3** Create sandbox accounts: one **personal** (the client/buyer), two **business** (workers/sellers). Note emails and passwords in the team's private notes.
-- [ ] **H4** Get an LLM API key (default: Anthropic) and a KERNEL API key (kernel.sh dashboard).
+- [x] **H4** (Gemini key, 2026-11-12; no KERNEL key) Get an LLM API key (default: Anthropic) and a KERNEL API key (kernel.sh dashboard).
 - [ ] **H5** Every teammate creates a local `.env` from `.env.example` with the shared values.
 - [ ] **H6** In the PayPal dashboard, request or enable **Payouts** for the sandbox app (needed only for the bounty stretch goal).
 - [ ] **H7** Create a Render account and connect the GitHub repo (needed in P7).
@@ -675,6 +675,8 @@ Format: `YYYY-MM-DD — <name> — decision — reason`
 - 2026-11-12 — Aryan — Redesign in a security-print language (cheques, banknotes, receipts): paper/ink/security-green palette, carmine for refunds, ochre for held money, self-hosted Bricolage Grotesque + IBM Plex Mono (`/assets/fonts/*`, CSP `font-src 'self'`), a generated guilloche band (`web/app/guilloche.svg`). The centrepiece is the settlement slip: a job drawn as a cheque whose milestone lines carry each verifier's vote and a Paid/Refunded stamp, on the home page (latest settled job, or a dashed example) and beside the job header. Rules and ledger lines instead of shadowed cards.
 
 - 2026-11-12 — Aryan — Rail decided: auth_capture (proven end to end in sandbox). Delayed disbursement stays in the code and the README as the production design (T1.6 time box; deadline tonight). Judge-mode demo runs now notice the PayPal approval by polling the order status every 3 s, and the buyer agent waits again on ORDER_NOT_APPROVED instead of failing.
+
+- 2026-11-12 — Aryan — Gemini as a second AI provider (`GeminiLlm`, REST + responseJsonSchema; `RoutingLlm` sends gemini-* models to Google, the rest to Anthropic). With only GEMINI_API_KEY the judges are gemini-3.5-flash / 3.6-flash / 3.5-flash-lite and drafts use gemini-3.5-flash. With any AI key the demo contract gains one `llm_judgement` item on the contact page (src/server/demo.ts); without a key it stays fully deterministic, so keyless judge mode and the tests are unchanged. `/app/connect` gives MCP setup (Claude Code, Claude Desktop, Cursor) with a judge-mode token.
 
 ---
 

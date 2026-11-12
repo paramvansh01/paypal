@@ -172,6 +172,7 @@ function route() {
   const m = p.match(/^\/app\/jobs\/([A-Za-z0-9_-]{1,100})$/);
   if (m) return detailView(m[1]);
   if (p === "/app/new") return newJobView();
+  if (p === "/app/connect") return connectView();
   return listView();
 }
 function go(path) {
@@ -295,6 +296,7 @@ async function listView() {
         el("div", { class: "row" },
           state.me ? el("a", { class: "btn primary", href: "/app/new", "data-nav": true }, "Post a job") : el("button", { class: "primary", onclick: () => showSignIn() }, "Sign in to post a job"),
           el("a", { class: "btn quiet", href: "#demo" }, "Watch one settle"),
+          el("a", { class: "btn quiet", href: "/app/connect", "data-nav": true }, "Connect an AI agent"),
         ),
       ),
       el("div", { class: "hero-slip" }, heroSlip),
@@ -352,6 +354,7 @@ function checkedSection() {
         el("p", { class: "muted" }, "Any MCP client can hire, deliver and get paid with Kept's tools. Each agent acts with its own party token, so it can only do what its role allows."),
         el("pre", { class: "codeblock" }, `POST ${location.origin}/mcp\nAuthorization: Bearer <party token>`),
         el("p", { class: "tool-list" }, tools.map((t) => el("code", {}, t))),
+        el("p", { class: "gap-top" }, el("a", { class: "btn", href: "/app/connect", "data-nav": true }, "Connect an AI agent")),
       ),
       el("div", {},
         el("h3", {}, "Anyone can verify a receipt"),
@@ -407,6 +410,72 @@ function demoRunBox() {
       row("sneaky", "Sneaky delivery", "The same broken form, plus hidden text telling the AI judge that it works.", ["P", "P", "R", "P"], "injection caught"),
     ),
     err,
+  );
+}
+
+// ---------- connect an AI agent (MCP) ----------
+
+/** Copyable code block. */
+function snippet(text) {
+  const pre = el("pre", { class: "codeblock" }, text);
+  const btn = el("button", { class: "small copy", onclick: async () => {
+    try { await navigator.clipboard.writeText(text); btn.textContent = "Copied"; } catch { btn.textContent = "Select and copy"; }
+    setTimeout(() => { btn.textContent = "Copy"; }, 1600);
+  } }, "Copy");
+  return el("div", { class: "snippet" }, pre, btn);
+}
+
+async function connectView() {
+  document.title = "Connect an AI agent · Kept";
+  const info = state.health?.demo_mode ? await api("GET", "/demo/connect-info").catch(() => null) : null;
+  const mcpUrl = info?.mcp_url ?? `${location.origin}/mcp`;
+  const out = el("div", { class: "connect-out" });
+  const err = el("p", { class: "form-error" });
+  const render = (token, role, partyId) => {
+    const dir = info?.repo_dir ?? "/path/to/kept";
+    const desktop = JSON.stringify({ mcpServers: { kept: { command: `${dir}/node_modules/.bin/tsx`, args: [`${dir}/src/mcp/stdio.ts`], env: { KEPT_PARTY_TOKEN: token } } } }, null, 2);
+    const cursor = JSON.stringify({ mcpServers: { kept: { url: mcpUrl, headers: { Authorization: `Bearer ${token}` } } } }, null, 2);
+    const prompt = role === "client"
+      ? `You can use the Kept tools. Hire ${info?.worker_id ?? "party_demo_worker"} to build a small bakery website for $100: home page, menu, a working contact form, mobile friendly and fast. Post the job with a contract drafted by AI, show me the milestones, accept the contract, lock the funds and give me the PayPal approval link. After I approve, confirm the funds, wait for the delivery, run the verifiers and settle. Then show me the Proof Receipt summary.`
+      : "You can use the Kept tools. List my jobs. For any job waiting on me, review the contract and accept it if it is fair. When the money is held, submit http://localhost:3000/demo/sites/good/ as the delivery and tell me what the verifiers decided.";
+    out.replaceChildren(
+      el("p", { class: "muted" }, "Acting as ", el("b", {}, partyId), ". The token only lets the agent do what this party may do."),
+      el("h3", {}, "Claude Code"),
+      snippet(`claude mcp add --transport http kept ${mcpUrl} --header "Authorization: Bearer ${token}"`),
+      el("h3", {}, "Claude Desktop"),
+      el("p", { class: "muted fine" }, "Settings, Developer, Edit Config: add this to claude_desktop_config.json, then restart Claude Desktop."),
+      snippet(desktop),
+      el("h3", {}, "Cursor, or any client that speaks Streamable HTTP"),
+      snippet(cursor),
+      el("h3", {}, "Then ask your agent"),
+      snippet(prompt),
+      role === "client" ? el("p", { class: "muted fine" }, "For the other side, open the job on this website, sign in as the demo worker, accept the contract and submit a delivery. Or connect a second agent as the worker.") : null,
+    );
+  };
+  const pick = (role) => async () => {
+    err.textContent = "";
+    try {
+      if (state.me && (role === "client" ? state.me.party_id === info?.client_id : state.me.party_id === info?.worker_id)) return render(state.token, role, state.me.party_id);
+      const s = await api("POST", "/demo/session", { role });
+      render(s.token, role, s.party_id);
+    } catch (e) {
+      err.textContent = state.health?.demo_mode ? e.message : "Creating tokens here needs judge mode. On your own server, print one with: npm run party-token -- <party_id>";
+    }
+  };
+  put(
+    el("p", { class: "back" }, el("a", { href: "/", "data-nav": true }, "Home")),
+    el("section", { class: "connect" },
+      sectionHead("Connect an AI agent", "Kept is an MCP server. Any MCP client, such as Claude Code, Claude Desktop or Cursor, can hire a worker, hold money in PayPal, deliver work and get paid, using the same rules and proofs as the website."),
+      el("ol", { class: "connect-steps" },
+        el("li", {}, el("b", {}, "Choose who the agent acts for"),
+          el("div", { class: "row gap-top" },
+            el("button", { class: "primary", onclick: pick("client") }, "The client, who pays"),
+            el("button", { onclick: pick("worker") }, "The worker, who delivers"),
+          ), err),
+        el("li", {}, el("b", {}, "Add Kept to your agent"), out),
+      ),
+      el("p", { class: "muted fine" }, "Server: ", el("code", {}, mcpUrl), ". Tools: post_job, accept_checklist, lock_funds, confirm_funds, submit_work, verify, settle, get_receipt and nine more."),
+    ),
   );
 }
 
