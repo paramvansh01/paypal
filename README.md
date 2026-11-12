@@ -90,9 +90,9 @@ flowchart LR
   C[Client agent or person] -- post_job + contract --> K[Kept]
   W[Worker agent] -- accept + submit_work --> K
   K -- "order: custom_id = contract hash" --> P[(PayPal sandbox)]
-  K --> VA[verifier-a<br/>KERNEL Chromium<br/>Claude Opus]
-  K --> VB[verifier-b<br/>local Chromium<br/>Claude Sonnet]
-  K --> VC[verifier-c<br/>local WebKit<br/>Claude Haiku]
+  K --> VA[verifier-a<br/>KERNEL or local Chromium<br/>Gemini 3.5 Flash or Claude Opus]
+  K --> VB[verifier-b<br/>local Chromium<br/>Gemini 3.6 Flash or Claude Sonnet]
+  K --> VC[verifier-c<br/>local WebKit<br/>Gemini Flash-Lite or Claude Haiku]
   VA & VB & VC -- signed Merkle roots --> Q{2-of-3 quorum<br/>certificate}
   Q -- "settle re-verifies everything" --> P
   P -- "release passed / refund failed" --> W & C

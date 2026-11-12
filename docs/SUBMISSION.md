@@ -1,6 +1,6 @@
 # Kept: submission text
 
-> Draft for the hackathon submission form (T8.3). The official judging criteria are not in CLAUDE.md yet (human task H8). The headings below follow the usual criteria; re-map them when H8 is done. Every claim here maps to code and a test in the repo. Before submitting, fill the placeholders: hosted URL, video link, and whether the PayPal sandbox run happened.
+> Text for the submission form. Every claim here maps to code and a test in the repo. Paste the sections in order; the "Tools used" section answers the form's tools question.
 
 ## One line
 
@@ -21,7 +21,7 @@ Card networks let you pay, and instant payment networks let you pay anyone insta
 
 1. A client (agent or person) and a worker agree a **machine-checkable contract**: milestones of concrete checks, such as "the contact form submits and confirms" or "no sideways scroll on a phone". The contract is fingerprinted with SHA-256, and **the fingerprint is stamped on the PayPal order** (`custom_id`).
 2. **PayPal holds the money.** Kept never does.
-3. When the worker delivers, a **quorum of three independent verifiers** checks the work. Each runs a different browser engine (Chromium in the cloud, Chromium locally, WebKit) with a different Claude model as its judge. An item's verdict counts only when **two of three agree**.
+3. When the worker delivers, a **quorum of three independent verifiers** checks the work. Each runs its own browser (Chromium and WebKit, plus a KERNEL cloud Chromium slot when a KERNEL key is set) with a different AI model as its judge. An item's verdict counts only when **two of three agree**.
 4. Each verifier **hashes everything it saw** (results, screenshots) into a Merkle tree and **signs the root**.
 5. **Settlement verifies, not trusts.** Before PayPal moves a cent, Kept re-checks the contract fingerprint, every signature and the quorum maths. It then releases each passed milestone to the worker and refunds each failed one. The certificate hash is written onto the PayPal capture or refund, so PayPal's own records point back to the proof.
 6. Everyone gets a **Proof Receipt** they can verify **offline with one command** (plain Node, nothing to install) or **in the browser with one click**. Change one byte and verification fails, naming what broke.
@@ -50,11 +50,15 @@ Idempotency keys make retries safe, and webhooks are signature-verified with Pay
 
 *Status:* proven in the PayPal sandbox. An agent-to-agent job on the flawed site authorized $100.00 (order `6D238007NP567901X`), captured the three passed $25.00 milestones (captures `4NV62187M3044570V`, `1DH5688694905824Y`, `9MT19533AS346552A`; PayPal fee $1.36 and worker net $23.64 each, read back from PayPal and shown in the ledger) and voided the rest, so the failed milestone was never charged. See `docs/SPIKE_RESULTS.md`.
 
-## How AI is used
+## Tools used (AI models and services)
 
-- **Agents on both sides.** A buyer agent and a worker agent do a whole job through Kept's **MCP server** (17 tools, Streamable HTTP and stdio). Any MCP client, such as Claude Code or Claude Desktop, can do the same.
-- **Contract drafting.** Claude turns a plain-language brief into a contract. The draft is validated against the same schema as any contract, the amounts must add up exactly, and both parties still accept it.
-- **AI judges inside the quorum.** Claude Opus, Sonnet and Haiku each answer narrow yes/no questions as one of the verifiers. Their answers are strict JSON, always labelled "AI opinion". Subjective items are always decided by the client.
+- **Google Gemini (AI judges and contract drafting).** Each verifier has its own Gemini model as judge: `gemini-3.5-flash`, `gemini-3.6-flash` and `gemini-3.5-flash-lite`. A judge answers one narrow yes/no question about a screenshot and the page text, for example "does this page show a contact form with name, email and message?". It must return strict JSON (verified against a schema) that echoes a secret canary token, so a hijacked answer is caught. Answers are always labelled "AI opinion"; deterministic checks decide everything they can. Gemini also turns a plain-language brief into a draft contract, which is validated against the contract schema and must add up to the budget before either party can accept it. Proven live: in our sandbox run all three Gemini judges answered, and on the sneaky site they flagged the hidden instructions themselves (`docs/SPIKE_RESULTS.md`).
+- **Anthropic Claude (optional, same roles).** Kept routes `claude-*` models to Anthropic, so Claude Opus, Sonnet and Haiku can be the three judges instead (`ANTHROPIC_API_KEY`). One provider interface, record and replay for tests.
+- **Model Context Protocol.** Kept is an MCP server (17 tools over Streamable HTTP and stdio, built on the official TypeScript SDK). Our buyer and worker agents are MCP clients, and in the video **Claude Code** connects to Kept over MCP, posts a job, has the contract drafted, and audits a finished job by fetching and independently verifying its Proof Receipt. The in-app "Connect an AI agent" page gives the setup for Claude Code, Claude Desktop and Cursor.
+- **PayPal REST APIs (sandbox).** Orders v2 (authorize intent, `custom_id` = contract fingerprint), Payments v2 (partial captures, voids, refunds; fees read back from `seller_receivable_breakdown`), webhook signature verification, and the delayed-disbursement design (referenced payouts) behind the same rail interface.
+- **Playwright** drives the verifier browsers (Chromium and WebKit); **KERNEL** cloud browsers are supported for one verifier when a key is set (our recorded run used local Chromium in that slot, and the signed attestation says so).
+- **AG Grid Community** renders the money ledger.
+- **Claude Code** was also our coding assistant while building the project.
 
 ## Built as infrastructure
 
@@ -69,8 +73,8 @@ Idempotency keys make retries safe, and webhooks are signature-verified with Pay
 ## Links
 
 - Repo: https://github.com/paramvansh01/paypal (MIT)
-- Hosted demo: not deployed; the README runs it locally in five minutes, with or without PayPal keys
-- Video: [fill in]
+- Functional demo: full setup and run instructions in the README (one command, works with no keys in judge mode; add PayPal sandbox keys for real money movement)
+- Video: [paste YouTube link]
 - Protocol spec: `docs/PROTOCOL.md` · Prior art: `docs/PRIOR_ART.md` · Postman: `postman/`
 
 ## Team
