@@ -123,6 +123,7 @@ function renderBanner() {
 }
 
 function showSignIn(message) {
+  clearTimeout(timer); // the home page refreshes itself; it must not redraw over this form
   const input = el("input", { type: "password", placeholder: "party_xxx.0123…", autocomplete: "off", "aria-label": "Party token" });
   const err = el("p", { class: "form-error" }, message ?? "");
   const go = async (token) => {
