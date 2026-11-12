@@ -12,9 +12,9 @@
 
 ```
 Phase:              P1 — PayPal sandbox proof. Every task that needs no keys is done (MUST and SHOULD); the rest waits on human tasks H2–H4, H7–H11.
-Next action:        T1.1 (full remaining plan: docs/NEXT_STEPS.md) — with H2 keys in .env: `npm run spike:token`, then `npm run spike:rail -- --rail auth_capture --write` (H3 accounts) → T1.2/T1.6, then mark T2.3 and run `npm run demo -- --site all --runs 3` on the real rail (T4.5).
+Next action:        T1.2 (full remaining plan: docs/NEXT_STEPS.md) — H2 done, real sandbox token works; next `npm run spike:rail -- --rail auth_capture --write` (H3 accounts) → T1.2/T1.6, then mark T2.3 and run `npm run demo -- --site all --runs 3` on the real rail (T4.5).
 Suggested order:    H2–H3 → T1.1/T1.2/T1.6 (spike:rail) → T2.3 proof → T4.5 → H7 + T7.2 deploy → H4 → T3.2/T3.6 live → T4.2 real client → H8 → T8.3 → H10/H11.
-Active session:     none
+Active session:     Aryan — 2026-11-12T17:20+05:30
 Last updated:       2026-11-11 (Aashman: T4.1–T4.4, T5.1–T5.4, T3.1, TQ.5, TQ.11, TQ.12, T6.x, T7.4, T8.1/T8.2/T8.4/T8.5 done; rails, LLM, Render, submission drafted)
 Payment rail:       UNDECIDED (decided by the spike in P1)
 Blockers:           H2–H3 (PayPal sandbox app + accounts) block every real-money proof: T1.x, T2.3/T2.4 proof, T4.5 real rail, TQ.9 binding. H4 (Anthropic + KERNEL keys) blocks live T3.2/T3.6. H7 (Render) blocks T7.2. Claude Code login on Aashman's Mac expired, which blocks the T4.2 real-client check. H8 blocks T8.3 final.
@@ -174,7 +174,7 @@ Judging criteria (FILL IN from the official rules, so every decision can be weig
 Claude must not create accounts or type credentials into websites. At session start, remind the human about any unchecked item that blocks the current phase.
 
 - [x] **H1** Public GitHub repo: https://github.com/paramvansh01/paypal (created by Param; it is named `paypal`, not `kept`). Still to do: add every teammate as a collaborator so they can push.
-- [ ] **H2** Create a PayPal Developer account. In the sandbox dashboard create a REST app of the **Platform / Marketplace** type (needed for multiparty features). Copy the client ID and secret.
+- [x] **H2** Create a PayPal Developer account. In the sandbox dashboard create a REST app of the **Platform / Marketplace** type (needed for multiparty features). Copy the client ID and secret.
 - [ ] **H3** Create sandbox accounts: one **personal** (the client/buyer), two **business** (workers/sellers). Note emails and passwords in the team's private notes.
 - [ ] **H4** Get an LLM API key (default: Anthropic) and a KERNEL API key (kernel.sh dashboard).
 - [ ] **H5** Every teammate creates a local `.env` from `.env.example` with the shared values.
@@ -478,7 +478,7 @@ Priority tiers: **MUST** = needed for a valid, convincing submission. **SHOULD**
 
 Goal: learn in a few hours which rail works in our sandbox. Scripts live in `scripts/spike-*.ts`. Results go in `docs/SPIKE_RESULTS.md` with real request and response samples (secrets removed).
 
-- [!] **T1.1** PayPal client: token fetch with caching, a request helper with `PayPal-Request-Id`, structured errors that keep PayPal's `debug_id`.
+- [x] **T1.1** PayPal client: token fetch with caching, a request helper with `PayPal-Request-Id`, structured errors that keep PayPal's `debug_id`.
   *Done when:* a unit test covers token reuse and a script fetches a real token.
 - [ ] **T1.2** Spike A — fallback rail first, because it has no setup dependencies: create an `AUTHORIZE` order, print the approval link, human approves with the sandbox personal account, authorize, partially capture as final, confirm the remainder is released. Also test void.
   *Done when:* the results file shows the IDs and the buyer's sandbox balance before and after.
